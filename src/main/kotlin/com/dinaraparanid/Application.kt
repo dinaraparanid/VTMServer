@@ -1,23 +1,20 @@
 package com.dinaraparanid
 
-import com.dinaraparanid.plugins.configureRouting
-import com.dinaraparanid.plugins.configureSerialization
+import com.dinaraparanid.plugins.*
+import io.ktor.server.application.*
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
-import org.slf4j.LoggerFactory
+
+fun Application.configureModules() {
+    configureSerialization()
+    configureCORS()
+    configureCompression()
+    configureRouting()
+    configureTemplating()
+}
 
 fun main() {
-    embeddedServer(Netty, environment = applicationEngineEnvironment {
-        log = LoggerFactory.getLogger("com.dinaraparanid.VTMServer")
-
-        connector {
-            host = "0.0.0.0"
-            port = 1337
-        }
-
-        module {
-            configureRouting()
-            configureSerialization()
-        }
-    }).start(wait = true)
+    embeddedServer(Netty, 1337) {
+        configureModules()
+    }.start(wait = true)
 }
