@@ -3,6 +3,8 @@ package com.dinaraparanid.data
 import com.sapher.youtubedl.YoutubeDL
 import com.sapher.youtubedl.YoutubeDLException
 import com.sapher.youtubedl.YoutubeDLRequest
+import org.jaudiotagger.audio.AudioFileIO
+import org.jaudiotagger.tag.FieldKey
 import java.io.File
 import java.io.PrintWriter
 import java.io.StringWriter
@@ -16,12 +18,14 @@ sealed interface ConversionStatus {
 
     enum class Error : ConversionStatus {
         NO_INTERNET,
-        INCORRECT_URL_LINK
+        INCORRECT_URL_LINK,
+        UNKNOWN_ERROR
     }
 }
 
-internal fun convertVideo(url: String, ext: TrackFileExtension): ConversionStatus {
+internal fun convertVideo(url: String, ext: TrackFileExtension, videoTitle: String): ConversionStatus {
     val request = YoutubeDLRequest(url).apply {
+        setOption("--get-filename")
         setOption("--extract-audio")
         setOption("--audio-format", ext.extension)
         setOption("-o", "$CONVERTED_TRACKS_PATH/%(title)s.%(ext)s")
@@ -29,8 +33,8 @@ internal fun convertVideo(url: String, ext: TrackFileExtension): ConversionStatu
         setOption("--retries", "infinite")
     }
 
-    try {
-        YoutubeDL.execute(request)
+    val (fileName) = try {
+        YoutubeDL.execute(request).out.split('\n').map(String::trim)
     } catch (e: YoutubeDLException) {
         val stringWriter = StringWriter()
         val printWriter = PrintWriter(stringWriter)
@@ -46,13 +50,20 @@ internal fun convertVideo(url: String, ext: TrackFileExtension): ConversionStatu
         }
     }
 
-    return ConversionStatus.Success(getFile(url, ext))
+    return getFileOrError(fileName, ext, videoTitle)
 }
 
-private fun getFile(url: String, ext: TrackFileExtension): File {
-    val path = "$CONVERTED_TRACKS_PATH/$url.$ext"
+private fun getFileOrError(filename: String, ext: TrackFileExtension, videoTitle: String): ConversionStatus {
+    val path = "$CONVERTED_TRACKS_PATH/$filename.$ext"
+    val file = File(path)
 
-    // TODO: Set file tags and return file
+    if (!file.exists())
+        return ConversionStatus.Error.UNKNOWN_ERROR
 
-    return File(path)
+    AudioFileIO.read(file).run {
+        tagOrCreateAndSetDefault.setField(FieldKey.TITLE, videoTitle)
+        commit()
+    }
+
+    return ConversionStatus.Success(File(path))
 }

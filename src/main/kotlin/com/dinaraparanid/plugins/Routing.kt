@@ -30,7 +30,9 @@ private suspend fun PipelineContext<Unit, ApplicationCall>.convertAndSendTrack()
     val trackExt = call.parameters["ext"]?.trim()?.let(TrackFileExtension::fromString)
         ?: return call.respondText("No output file extension provided", status = HttpStatusCode.BadRequest)
 
-    call.respond(message = getVideoData(url))
+    val videoData = getVideoData(url)
+
+    call.respond(message = videoData)
 
     call.response.header(
         name = HttpHeaders.ContentDisposition,
@@ -40,7 +42,7 @@ private suspend fun PipelineContext<Unit, ApplicationCall>.convertAndSendTrack()
             .toString()
     )
 
-    call.respondConvertedFileOrError(convertVideo(url, trackExt))
+    call.respondConvertedFileOrError(convertVideo(url = url, ext = trackExt, videoTitle = videoData.title))
 }
 
 private suspend fun ApplicationCall.respondConvertedFileOrError(conversionStatus: ConversionStatus) =
@@ -48,4 +50,5 @@ private suspend fun ApplicationCall.respondConvertedFileOrError(conversionStatus
         is ConversionStatus.Success -> respondFile(conversionStatus.file)
         ConversionStatus.Error.NO_INTERNET -> println("WARNING: No Internet Connection")
         ConversionStatus.Error.INCORRECT_URL_LINK -> respondText("Incorrect URL link")
+        ConversionStatus.Error.UNKNOWN_ERROR -> respondText("Unknown error")
     }
