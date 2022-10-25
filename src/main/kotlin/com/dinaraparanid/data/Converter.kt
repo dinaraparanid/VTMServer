@@ -3,67 +3,83 @@ package com.dinaraparanid.data
 import com.sapher.youtubedl.YoutubeDL
 import com.sapher.youtubedl.YoutubeDLException
 import com.sapher.youtubedl.YoutubeDLRequest
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.Json
 import org.jaudiotagger.audio.AudioFileIO
 import org.jaudiotagger.tag.FieldKey
 import java.io.File
 import java.io.PrintWriter
 import java.io.StringWriter
+import kotlin.math.pow
 
 private val CONVERTED_TRACKS_PATH = "${System.getProperty("user.dir")}/vtm_tracks"
 
-internal fun getVideoData(url: String) = VideoInfo(YoutubeDL.getVideoInfo(url)!!)
+private inline val YoutubeDLException.errorType: YoutubeDLRequestStatus.Error
+    get() {
+        val stringWriter = StringWriter()
+        val printWriter = PrintWriter(stringWriter)
 
-sealed interface ConversionStatus {
-    data class Success(val file: File) : ConversionStatus
+        printStackTrace(printWriter)
+        printStackTrace()
 
-    enum class Error : ConversionStatus {
-        NO_INTERNET,
-        INCORRECT_URL_LINK,
-        UNKNOWN_ERROR
+        val stackTrack = stringWriter.toString()
+
+        return when {
+            "Unable to download webpage" in stackTrack -> YoutubeDLRequestStatus.Error.NO_INTERNET
+            else -> YoutubeDLRequestStatus.Error.INCORRECT_URL_LINK
+        }
     }
+
+private val json = Json { ignoreUnknownKeys = true }
+
+internal fun getVideoData(url: String): YoutubeDLRequestStatus {
+    val request = YoutubeDLRequest(url).apply {
+        setOption("dump-json")
+        setOption("no-progress")
+        setOption("no-playlist")
+    }
+
+    val (title, duration, description, fileName, thumbnail) = try {
+        json.decodeFromString<VideoInfo>(YoutubeDL.execute(request).out)
+    } catch (e: YoutubeDLException) {
+        return e.errorType
+    }
+
+    val seconds = duration.toLong()
+    return YoutubeDLRequestStatus.Success(VideoInfo(title, seconds, description, fileName, thumbnail))
 }
 
-internal fun convertVideo(url: String, ext: TrackFileExtension, videoTitle: String): ConversionStatus {
+internal fun convertVideo(url: String, ext: TrackFileExtension, videoTitle: String): YoutubeDLRequestStatus {
     val request = YoutubeDLRequest(url).apply {
-        setOption("--get-filename")
-        setOption("--extract-audio")
-        setOption("--audio-format", ext.extension)
+        setOption("extract-audio")
+        setOption("audio-format", ext.extension)
         setOption("-o", "$CONVERTED_TRACKS_PATH/%(title)s.%(ext)s")
-        setOption("--socket-timeout", "1")
-        setOption("--retries", "infinite")
+        setOption("socket-timeout", "1")
+        setOption("retries", "infinite")
     }
 
     val (fileName) = try {
         YoutubeDL.execute(request).out.split('\n').map(String::trim)
     } catch (e: YoutubeDLException) {
-        val stringWriter = StringWriter()
-        val printWriter = PrintWriter(stringWriter)
-
-        e.printStackTrace(printWriter)
-        e.printStackTrace()
-
-        val stackTrack = stringWriter.toString()
-
-        return when {
-            "Unable to download webpage" in stackTrack -> ConversionStatus.Error.NO_INTERNET
-            else -> ConversionStatus.Error.INCORRECT_URL_LINK
-        }
+        return e.errorType
     }
 
     return getFileOrError(fileName, ext, videoTitle)
 }
 
-private fun getFileOrError(filename: String, ext: TrackFileExtension, videoTitle: String): ConversionStatus {
+private fun getFileOrError(filename: String, ext: TrackFileExtension, videoTitle: String): YoutubeDLRequestStatus {
     val path = "$CONVERTED_TRACKS_PATH/$filename.$ext"
     val file = File(path)
 
     if (!file.exists())
-        return ConversionStatus.Error.UNKNOWN_ERROR
+        return YoutubeDLRequestStatus.Error.UNKNOWN_ERROR
 
     AudioFileIO.read(file).run {
         tagOrCreateAndSetDefault.setField(FieldKey.TITLE, videoTitle)
         commit()
     }
 
-    return ConversionStatus.Success(File(path))
+    return YoutubeDLRequestStatus.Success(File(path))
 }

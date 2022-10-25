@@ -1,7 +1,7 @@
 package com.dinaraparanid.plugins
 
-import com.dinaraparanid.data.ConversionStatus
-import com.dinaraparanid.data.TrackFileExtension
+import com.dinaraparanid.data.*
+import com.dinaraparanid.data.YoutubeDLRequestStatus
 import com.dinaraparanid.data.convertVideo
 import com.dinaraparanid.data.getVideoData
 import io.ktor.http.*
@@ -11,6 +11,7 @@ import io.ktor.server.plugins.partialcontent.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.util.pipeline.*
+import java.io.File
 
 fun Application.configureRouting() {
     install(PartialContent)
@@ -30,25 +31,44 @@ private suspend fun PipelineContext<Unit, ApplicationCall>.convertAndSendTrack()
     val trackExt = call.parameters["ext"]?.trim()?.let(TrackFileExtension::fromString)
         ?: return call.respondText("No output file extension provided", status = HttpStatusCode.BadRequest)
 
-    val videoData = getVideoData(url)
+    call.onYoutubeDLRequest<VideoInfo>(getVideoData(url)) { videoInfo ->
+        respondVideoInfo(videoInfo)
 
-    call.respond(message = videoData)
+        convertAndRespondVideoFile(
+            videoTitle = videoInfo.title,
+            fileName = videoInfo.fileName,
+            url = url,
+            trackExt = trackExt
+        )
+    }
+}
 
-    call.response.header(
+private suspend inline fun <T> ApplicationCall.onYoutubeDLRequest(
+    status: YoutubeDLRequestStatus,
+    onSuccess: ApplicationCall.(T) -> Unit
+) = when (status) {
+    is YoutubeDLRequestStatus.Success<*> -> onSuccess(status.castAndGetData())
+    YoutubeDLRequestStatus.Error.NO_INTERNET -> println("WARNING: No Internet Connection")
+    YoutubeDLRequestStatus.Error.INCORRECT_URL_LINK -> respondText("Incorrect URL link")
+    YoutubeDLRequestStatus.Error.UNKNOWN_ERROR -> respondText("Unknown error")
+    YoutubeDLRequestStatus.Error.INVALID_DATA -> respondText("Invalid data")
+}
+
+private suspend fun ApplicationCall.respondVideoInfo(videoInfo: VideoInfo) = respond(message = videoInfo)
+
+private suspend fun ApplicationCall.convertAndRespondVideoFile(
+    videoTitle: String,
+    fileName: String,
+    url: String,
+    trackExt: TrackFileExtension
+) {
+    response.header(
         name = HttpHeaders.ContentDisposition,
         value = ContentDisposition
             .Attachment
-            .withParameter(ContentDisposition.Parameters.FileName, "$url.${trackExt.extension}")
+            .withParameter(ContentDisposition.Parameters.FileName, "$fileName.${trackExt.extension}")
             .toString()
     )
 
-    call.respondConvertedFileOrError(convertVideo(url = url, ext = trackExt, videoTitle = videoData.title))
+    onYoutubeDLRequest<File>(convertVideo(url, trackExt, videoTitle)) { respondFile(it) }
 }
-
-private suspend fun ApplicationCall.respondConvertedFileOrError(conversionStatus: ConversionStatus) =
-    when (conversionStatus) {
-        is ConversionStatus.Success -> respondFile(conversionStatus.file)
-        ConversionStatus.Error.NO_INTERNET -> println("WARNING: No Internet Connection")
-        ConversionStatus.Error.INCORRECT_URL_LINK -> respondText("Incorrect URL link")
-        ConversionStatus.Error.UNKNOWN_ERROR -> respondText("Unknown error")
-    }
