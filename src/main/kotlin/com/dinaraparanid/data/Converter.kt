@@ -3,8 +3,6 @@ package com.dinaraparanid.data
 import com.sapher.youtubedl.YoutubeDL
 import com.sapher.youtubedl.YoutubeDLException
 import com.sapher.youtubedl.YoutubeDLRequest
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import org.jaudiotagger.audio.AudioFileIO
@@ -47,15 +45,14 @@ internal fun getVideoData(url: String): YoutubeDLRequestStatus {
         return e.errorType
     }
 
-    val seconds = duration.toLong()
-    return YoutubeDLRequestStatus.Success(VideoInfo(title, seconds, description, fileName, thumbnail))
+    return YoutubeDLRequestStatus.Success(VideoInfo(title, duration, description, fileName, thumbnail))
 }
 
 internal fun convertVideo(url: String, ext: TrackFileExtension, videoTitle: String): YoutubeDLRequestStatus {
     val request = YoutubeDLRequest(url).apply {
         setOption("extract-audio")
         setOption("audio-format", ext.extension)
-        setOption("-o", "$CONVERTED_TRACKS_PATH/%(title)s.%(ext)s")
+        setOption("output", "$CONVERTED_TRACKS_PATH/%(title)s.%(ext)s")
         setOption("socket-timeout", "1")
         setOption("retries", "infinite")
     }

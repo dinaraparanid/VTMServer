@@ -32,11 +32,20 @@ private suspend fun PipelineContext<Unit, ApplicationCall>.convertAndSendTrack()
         ?: return call.respondText("No output file extension provided", status = HttpStatusCode.BadRequest)
 
     call.onYoutubeDLRequest<VideoInfo>(getVideoData(url)) { videoInfo ->
+        val fileName = videoInfo.fileName
+
+        response.header(
+            name = HttpHeaders.ContentDisposition,
+            value = ContentDisposition
+                .Attachment
+                .withParameter(ContentDisposition.Parameters.FileName, "$fileName.${trackExt.extension}")
+                .toString()
+        )
+
         respondVideoInfo(videoInfo)
 
         convertAndRespondVideoFile(
             videoTitle = videoInfo.title,
-            fileName = videoInfo.fileName,
             url = url,
             trackExt = trackExt
         )
@@ -58,17 +67,6 @@ private suspend fun ApplicationCall.respondVideoInfo(videoInfo: VideoInfo) = res
 
 private suspend fun ApplicationCall.convertAndRespondVideoFile(
     videoTitle: String,
-    fileName: String,
     url: String,
     trackExt: TrackFileExtension
-) {
-    response.header(
-        name = HttpHeaders.ContentDisposition,
-        value = ContentDisposition
-            .Attachment
-            .withParameter(ContentDisposition.Parameters.FileName, "$fileName.${trackExt.extension}")
-            .toString()
-    )
-
-    onYoutubeDLRequest<File>(convertVideo(url, trackExt, videoTitle)) { respondFile(it) }
-}
+) = onYoutubeDLRequest<File>(convertVideo(url, trackExt, videoTitle)) { respondFile(it) }
