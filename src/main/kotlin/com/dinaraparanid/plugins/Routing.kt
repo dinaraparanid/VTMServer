@@ -1,9 +1,9 @@
 package com.dinaraparanid.plugins
 
-import com.dinaraparanid.data.*
-import com.dinaraparanid.data.YoutubeDLRequestStatus
-import com.dinaraparanid.data.convertVideo
-import com.dinaraparanid.data.getVideoData
+import com.dinaraparanid.converter.*
+import com.dinaraparanid.converter.YoutubeDLRequestStatus
+import com.dinaraparanid.converter.convertVideoAsync
+import com.dinaraparanid.converter.getVideoDataAsync
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.plugins.autohead.*
@@ -18,37 +18,44 @@ fun Application.configureRouting() {
     install(AutoHeadResponse)
 
     routing {
+        route("/get_video") {
+            get("{url?}") { respondVideData() }
+        }
+
         route("/convert_video") {
-            get("{url?}{ext?}") { convertAndSendTrack() }
+            get("{url?}{ext?}") { convertAndRespondTrackFile() }
         }
     }
 }
 
-private suspend fun PipelineContext<Unit, ApplicationCall>.convertAndSendTrack() {
+private suspend fun PipelineContext<Unit, ApplicationCall>.respondVideData() {
+    val url = call.parameters["url"]?.trim()
+        ?: return call.respondText("No URL to video provided", status = HttpStatusCode.BadRequest)
+
+    call.onYoutubeDLRequest<VideoInfo>(getVideoDataAsync(url).await()) { videoInfo ->
+        respondVideoInfo(videoInfo)
+    }
+}
+
+private suspend fun PipelineContext<Unit, ApplicationCall>.convertAndRespondTrackFile() {
     val url = call.parameters["url"]?.trim()
         ?: return call.respondText("No URL to video provided", status = HttpStatusCode.BadRequest)
 
     val trackExt = call.parameters["ext"]?.trim()?.let(TrackFileExtension::fromString)
         ?: return call.respondText("No output file extension provided", status = HttpStatusCode.BadRequest)
 
-    call.onYoutubeDLRequest<VideoInfo>(getVideoData(url)) { videoInfo ->
-        val fileName = videoInfo.fileName
+    call.onYoutubeDLRequest<VideoInfo>(getVideoDataAsync(url).await()) { videoInfo ->
+        val videoTitle = videoInfo.title
 
         response.header(
             name = HttpHeaders.ContentDisposition,
             value = ContentDisposition
                 .Attachment
-                .withParameter(ContentDisposition.Parameters.FileName, "$fileName.${trackExt.extension}")
+                .withParameter(ContentDisposition.Parameters.FileName, "$videoTitle.${trackExt.extension}")
                 .toString()
         )
 
-        respondVideoInfo(videoInfo)
-
-        convertAndRespondVideoFile(
-            videoTitle = videoInfo.title,
-            url = url,
-            trackExt = trackExt
-        )
+        convertAndRespondVideoFile(videoTitle, videoInfo.thumbnail, url, trackExt)
     }
 }
 
@@ -67,6 +74,7 @@ private suspend fun ApplicationCall.respondVideoInfo(videoInfo: VideoInfo) = res
 
 private suspend fun ApplicationCall.convertAndRespondVideoFile(
     videoTitle: String,
+    videoThumbnail: String,
     url: String,
     trackExt: TrackFileExtension
-) = onYoutubeDLRequest<File>(convertVideo(url, trackExt, videoTitle)) { respondFile(it) }
+) = onYoutubeDLRequest<File>(convertVideoAsync(url, trackExt, videoTitle, videoThumbnail).await()) { respondFile(it) }
