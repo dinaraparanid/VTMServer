@@ -8,10 +8,15 @@ import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import org.jaudiotagger.audio.AudioFileIO
 import org.jaudiotagger.tag.FieldKey
+import org.jaudiotagger.tag.Tag
 import org.jaudiotagger.tag.images.ArtworkFactory
+import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.FileOutputStream
 import java.io.PrintWriter
 import java.io.StringWriter
+import java.lang.UnsupportedOperationException
+import java.net.URL
 import java.time.Duration
 import kotlin.time.toKotlinDuration
 
@@ -28,8 +33,9 @@ private inline val YoutubeDLException.errorType: YoutubeDLRequestStatus.Error
         val stackTrack = stringWriter.toString()
 
         return when {
-            "Unable to download webpage" in stackTrack -> YoutubeDLRequestStatus.Error.NO_INTERNET
-            else -> YoutubeDLRequestStatus.Error.INCORRECT_URL_LINK
+            "Unable to download" in stackTrack -> YoutubeDLRequestStatus.Error.NO_INTERNET
+            "Video unavailable" in stackTrack -> YoutubeDLRequestStatus.Error.INCORRECT_URL_LINK
+            else -> YoutubeDLRequestStatus.Error.UNKNOWN_ERROR
         }
     }
 
@@ -70,63 +76,121 @@ internal suspend fun getVideoDataAsync(url: String) = converterScope.async(Dispa
 internal fun convertVideoAsync(
     url: String,
     ext: TrackFileExtension,
+    videoFileNameWithoutExt: String,
     videoTitle: String,
-    videoThumbnail: String
+    videoThumbnailURL: String
 ) = converterScope.async(Dispatchers.IO) {
-    val request = YoutubeDLRequest(url).apply {
+    val coverPath = when (ext) {
+        is TrackFileExtension.VideoExt -> null
+        else -> "$CONVERTED_TRACKS_PATH/${videoFileNameWithoutExt}_cover.png"
+    }
+
+    val storeThumbnailTask = when (ext) {
+        is TrackFileExtension.VideoExt -> null
+        else -> storeThumbnailAsync(videoThumbnailURL, coverPath!!)
+    }
+
+    val request = YoutubeDLRequest(url, CONVERTED_TRACKS_PATH).apply {
         setOption(
             "audio-format",
             when (ext) {
-                TrackFileExtension.MP4 -> TrackFileExtension.WAV
-                else -> ext
+                is TrackFileExtension.MusicExt -> ext
+                else -> TrackFileExtension.MusicExt.WAV
             }.extension
         )
 
-        setOption("output", "$CONVERTED_TRACKS_PATH/%(title)s.%(ext)s")
         setOption("socket-timeout", 1)
         setOption("retries", "infinite")
-        setOption("audio-quality", 0)
+        setOption("extract-audio")
+        setOption("format", "best")
 
-        when (ext) {
-            TrackFileExtension.MP4 -> setOption("keep-video")
-            else -> setOption("extract-audio")
+        if (ext is TrackFileExtension.VideoExt) {
+            setOption("keep-video")
+            setOption("recode-video", ext.extension)
         }
     }
 
-    val (fileName) = try {
-        YoutubeDL.execute(request).out.split('\n').map(String::trim)
-    } catch (e: YoutubeDLException) {
-        return@async e.errorType
-    }
+    var tries = 10
+    var error: YoutubeDLRequestStatus.Error? = null
 
-    return@async getFileOrError(fileName, ext, videoTitle, videoThumbnail)
+    while (tries > 0)
+        try {
+            YoutubeDL.execute(request)
+            break
+        } catch (e: YoutubeDLException) {
+            tries--
+            error = e.errorType
+        }
+
+    if (tries == 0)
+        return@async error!!
+
+    return@async getFileOrError(ext, videoFileNameWithoutExt, videoTitle, coverPath, storeThumbnailTask)
 }
 
-private fun getFileOrError(
-    filename: String,
-    ext: TrackFileExtension,
-    videoTitle: String,
-    videoThumbnail: String
-): YoutubeDLRequestStatus {
-    val convertedPath = "$CONVERTED_TRACKS_PATH/$filename.$ext"
-    val correctPath = "$CONVERTED_TRACKS_PATH/$videoTitle.$ext"
-
-    val file = File(convertedPath).let { convertedFile ->
-        val correctFile = File(correctPath)
-        convertedFile.renameTo(correctFile)
-        correctFile
+private fun storeThumbnailAsync(videoThumbnailURL: String, coverPath: String) = converterScope.launch(Dispatchers.IO) {
+    val coverData = ByteArrayOutputStream().use {
+        val coverData = URL(videoThumbnailURL).readBytes()
+        it.write(coverData)
+        it.toByteArray()
     }
 
-    if (!file.exists())
-        return YoutubeDLRequestStatus.Error.UNKNOWN_ERROR
+    FileOutputStream(coverPath).use { it.write(coverData) }
+}
 
-    AudioFileIO.read(file).run {
-        tagOrCreateAndSetDefault.run {
+private fun Tag.setCover(coverPath: String) = try {
+    deleteArtworkField()
+    setField(ArtworkFactory.createArtworkFromFile(File(coverPath)))
+} catch (ignored: UnsupportedOperationException) {
+    // Cover change not supported for this file
+}
+
+private suspend fun setTags(trackFile: File, videoTitle: String, coverPath: String, storeThumbnailTask: Job) =
+    AudioFileIO.read(trackFile).run {
+        tagOrCreateAndSetDefault?.run {
             setField(FieldKey.TITLE, videoTitle)
-            setField(ArtworkFactory.createLinkedArtworkFromURL(videoThumbnail))
+            storeThumbnailTask.join()
+            setCover(coverPath)
         }
         commit()
     }
 
-    return YoutubeDLRequestStatus.Success(File(correctPath))
+private fun removeFilesAfterTimeoutAsync(
+    videoFileNameWithoutExt: String,
+    ext: TrackFileExtension,
+    trackFile: File,
+    coverFile: File?
+) = converterScope.launch(Dispatchers.IO) {
+    when (ext) {
+        is TrackFileExtension.MusicExt -> coverFile?.delete()
+        else -> File("$CONVERTED_TRACKS_PATH/$videoFileNameWithoutExt.wav").delete()
+    }
+
+    delay(Duration.ofDays(1).toKotlinDuration())
+    trackFile.delete()
+}
+
+private suspend fun getFileOrError(
+    ext: TrackFileExtension,
+    videoFileNameWithoutExt: String,
+    videoTitle: String,
+    coverPath: String?,
+    storeThumbnailTask: Job?
+): YoutubeDLRequestStatus {
+    val trackFile = File("$CONVERTED_TRACKS_PATH/$videoFileNameWithoutExt.${ext.extension}")
+
+    if (ext !is TrackFileExtension.VideoExt)
+        setTags(trackFile, videoTitle, coverPath!!, storeThumbnailTask!!)
+
+    removeFilesAfterTimeoutAsync(
+        videoFileNameWithoutExt,
+        ext,
+        trackFile,
+        coverFile = when (ext) {
+            is TrackFileExtension.VideoExt -> null
+            else -> File(coverPath!!)
+        }
+    )
+
+    return YoutubeDLRequestStatus.Success(trackFile)
 }

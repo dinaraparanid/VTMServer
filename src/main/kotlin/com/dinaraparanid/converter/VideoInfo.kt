@@ -9,5 +9,5 @@ data class VideoInfo(
     val duration: Long,
     val description: String,
     @SerialName("_filename") val fileName: String,
-    val thumbnail: String
+    @SerialName("thumbnail") val thumbnailURL: String
 )

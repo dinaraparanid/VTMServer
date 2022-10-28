@@ -45,17 +45,15 @@ private suspend fun PipelineContext<Unit, ApplicationCall>.convertAndRespondTrac
         ?: return call.respondText("No output file extension provided", status = HttpStatusCode.BadRequest)
 
     call.onYoutubeDLRequest<VideoInfo>(getVideoDataAsync(url).await()) { videoInfo ->
-        val videoTitle = videoInfo.title
+        val videoFile = File(videoInfo.fileName)
 
-        response.header(
-            name = HttpHeaders.ContentDisposition,
-            value = ContentDisposition
-                .Attachment
-                .withParameter(ContentDisposition.Parameters.FileName, "$videoTitle.${trackExt.extension}")
-                .toString()
+        convertAndRespondVideoFile(
+            videoFileNameWithoutExtension = videoFile.nameWithoutExtension,
+            videoTitle = videoInfo.title,
+            videoThumbnail = videoInfo.thumbnailURL,
+            url = url,
+            trackExt = trackExt
         )
-
-        convertAndRespondVideoFile(videoTitle, videoInfo.thumbnail, url, trackExt)
     }
 }
 
@@ -73,8 +71,24 @@ private suspend inline fun <T> ApplicationCall.onYoutubeDLRequest(
 private suspend fun ApplicationCall.respondVideoInfo(videoInfo: VideoInfo) = respond(message = videoInfo)
 
 private suspend fun ApplicationCall.convertAndRespondVideoFile(
+    videoFileNameWithoutExtension: String,
     videoTitle: String,
     videoThumbnail: String,
     url: String,
     trackExt: TrackFileExtension
-) = onYoutubeDLRequest<File>(convertVideoAsync(url, trackExt, videoTitle, videoThumbnail).await()) { respondFile(it) }
+) = onYoutubeDLRequest<File>(
+    convertVideoAsync(url, trackExt, videoFileNameWithoutExtension, videoTitle, videoThumbnail).await()
+) { convertedFile ->
+    response.header(
+        name = HttpHeaders.ContentDisposition,
+        value = ContentDisposition
+            .Attachment
+            .withParameter(
+                ContentDisposition.Parameters.FileName,
+                "$videoTitle.${trackExt.extension}"
+            )
+            .toString()
+    )
+
+    respondFile(convertedFile)
+}
