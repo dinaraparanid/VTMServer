@@ -7,7 +7,8 @@ internal sealed interface YoutubeDLRequestStatus {
         NO_INTERNET,
         INCORRECT_URL_LINK,
         UNKNOWN_ERROR,
-        INVALID_DATA
+        INVALID_DATA,
+        STREAM_CONVERSION
     }
 }
 

@@ -66,6 +66,7 @@ private suspend inline fun <T> ApplicationCall.onYoutubeDLRequest(
     YoutubeDLRequestStatus.Error.INCORRECT_URL_LINK -> respondText("Incorrect URL link")
     YoutubeDLRequestStatus.Error.UNKNOWN_ERROR -> respondText("Unknown error")
     YoutubeDLRequestStatus.Error.INVALID_DATA -> respondText("Invalid data")
+    YoutubeDLRequestStatus.Error.STREAM_CONVERSION -> respondText("Stream conversion is forbidden")
 }
 
 private suspend fun ApplicationCall.respondVideoInfo(videoInfo: VideoInfo) = respond(message = videoInfo)
