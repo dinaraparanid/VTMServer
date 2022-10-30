@@ -44,13 +44,11 @@ private suspend fun PipelineContext<Unit, ApplicationCall>.convertAndRespondTrac
     val trackExt = call.parameters["ext"]?.trim()?.let(TrackFileExtension::fromString)
         ?: return call.respondText("No output file extension provided", status = HttpStatusCode.BadRequest)
 
-    call.onYoutubeDLRequest<VideoInfo>(getVideoDataAsync(url).await()) { videoInfo ->
-        val videoFile = File(videoInfo.fileName)
-
+    call.onYoutubeDLRequest<VideoInfo>(getVideoDataAsync(url).await()) { (title, _, _, fileName, thumbnailURL) ->
         convertAndRespondVideoFile(
-            videoFileNameWithoutExtension = videoFile.nameWithoutExtension,
-            videoTitle = videoInfo.title,
-            videoThumbnail = videoInfo.thumbnailURL,
+            videoFileNameWithoutExtension = fileName,
+            videoTitle = title,
+            videoThumbnail = thumbnailURL,
             url = url,
             trackExt = trackExt
         )

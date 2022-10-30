@@ -23,7 +23,11 @@ internal suspend fun getVideoDataAsync(url: String) =
         }
 
         kotlin.runCatching {
-            YoutubeDLRequestStatus.Success(json.decodeFromString<VideoInfo>(YoutubeDL.execute(request).out))
+            YoutubeDLRequestStatus.Success(
+                json
+                    .decodeFromString<VideoInfo>(YoutubeDL.execute(request).out)
+                    .withFileNameWithoutExt
+            )
         }.getOrElse { exception ->
             ConversionException(exception).error
         }

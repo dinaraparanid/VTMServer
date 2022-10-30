@@ -45,6 +45,7 @@ internal fun convertVideoAsync(
         setOption("format", "best")
     }
 
+    isDownloaded = false
     downloadTries = 10
     downloadError = null
 
