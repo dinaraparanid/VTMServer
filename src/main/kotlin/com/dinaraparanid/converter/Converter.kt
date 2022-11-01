@@ -31,11 +31,15 @@ internal fun convertVideoAsync(
     url: String,
     ext: TrackFileExtension,
     videoFileNameWithoutExt: String,
-    videoTitle: String,
-    videoThumbnailURL: String
+    trackTitle: String,
+    trackArtist: String,
+    trackAlbum: String,
+    trackNumberInAlbum: Int,
+    videoThumbnailURL: String,
+    coverUrl: String? = null,
 ) = converterScope.async(Dispatchers.IO) {
     val coverPath = "$CONVERTED_TRACKS_PATH/${videoFileNameWithoutExt}_cover.png"
-    val storeThumbnailTask = storeThumbnailAsync(videoThumbnailURL, coverPath)
+    val storeThumbnailTask = storeThumbnailAsync(coverUrl ?: videoThumbnailURL, coverPath)
 
     val request = YoutubeDLRequest(url, CONVERTED_TRACKS_PATH).apply {
         setOption("audio-format", ext.extension)
@@ -62,12 +66,21 @@ internal fun convertVideoAsync(
     if (!isDownloaded)
         return@async downloadError!!
 
-    return@async getFileOrError(ext, videoFileNameWithoutExt, videoTitle, coverPath, storeThumbnailTask)
+    return@async getFileOrError(
+        ext,
+        videoFileNameWithoutExt,
+        trackTitle,
+        trackArtist,
+        trackAlbum,
+        trackNumberInAlbum,
+        coverPath,
+        storeThumbnailTask
+    )
 }
 
-private fun storeThumbnailAsync(videoThumbnailURL: String, coverPath: String) = converterScope.launch(Dispatchers.IO) {
+private fun storeThumbnailAsync(coverUrl: String, coverPath: String) = converterScope.launch(Dispatchers.IO) {
     val coverData = ByteArrayOutputStream().use {
-        val coverData = URL(videoThumbnailURL).readBytes()
+        val coverData = URL(coverUrl).readBytes()
         it.write(coverData)
         it.toByteArray()
     }
@@ -81,10 +94,21 @@ private fun Tag.setCoverCatching(coverPath: String) = kotlin.runCatching {
     setField(ArtworkFactory.createArtworkFromFile(File(coverPath)))
 }
 
-private suspend fun setTags(trackFile: File, videoTitle: String, coverPath: String, storeThumbnailTask: Job) =
+private suspend fun setTags(
+    trackFile: File,
+    trackTitle: String,
+    trackArtist: String,
+    trackAlbum: String,
+    trackNumberInAlbum: Int,
+    coverPath: String,
+    storeThumbnailTask: Job,
+) =
     AudioFileIO.read(trackFile).run {
         tagOrCreateAndSetDefault?.run {
-            setField(FieldKey.TITLE, videoTitle)
+            setField(FieldKey.TITLE, trackTitle)
+            setField(FieldKey.ARTIST, trackArtist)
+            setField(FieldKey.ALBUM, trackAlbum)
+            setField(FieldKey.TRACK, trackNumberInAlbum.toString())
             storeThumbnailTask.join()
             setCoverCatching(coverPath)
         }
@@ -103,12 +127,15 @@ private fun removeFilesAfterTimeoutAsync(
 private suspend fun getFileOrError(
     ext: TrackFileExtension,
     videoFileNameWithoutExt: String,
-    videoTitle: String,
+    trackTitle: String,
+    trackArtist: String,
+    trackAlbum: String,
+    trackNumberInAlbum: Int,
     coverPath: String,
-    storeThumbnailTask: Job
+    storeThumbnailTask: Job,
 ): YoutubeDLRequestStatus {
     val trackFile = File("$CONVERTED_TRACKS_PATH/$videoFileNameWithoutExt.${ext.extension}")
-    setTags(trackFile, videoTitle, coverPath, storeThumbnailTask)
+    setTags(trackFile, trackTitle, trackArtist, trackAlbum, trackNumberInAlbum, coverPath, storeThumbnailTask)
     removeFilesAfterTimeoutAsync(trackFile, coverFile = File(coverPath))
     return YoutubeDLRequestStatus.Success(trackFile)
 }

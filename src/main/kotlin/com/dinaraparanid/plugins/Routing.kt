@@ -18,12 +18,12 @@ fun Application.configureRouting() {
     install(AutoHeadResponse)
 
     routing {
-        route("/get_video") {
-            get("{url?}") { respondVideData() }
+        get("/get_video/{url?}") {
+            respondVideData()
         }
 
-        route("/convert_video") {
-            get("{url?}{ext?}") { convertAndRespondTrackFile() }
+        get("/convert_video/{url?}{ext?}{title?}{artist?}{album?}{numberInAlbum?}{coverUrl?}") {
+            convertAndRespondTrackFile()
         }
     }
 }
@@ -44,13 +44,23 @@ private suspend fun PipelineContext<Unit, ApplicationCall>.convertAndRespondTrac
     val trackExt = call.parameters["ext"]?.trim()?.let(TrackFileExtension::fromString)
         ?: return call.respondText("No output file extension provided", status = HttpStatusCode.BadRequest)
 
+    val trackTitle = call.parameters["title"]?.trim() ?: ""
+    val trackArtist = call.parameters["artist"]?.trim() ?: ""
+    val trackAlbum = call.parameters["album"]?.trim() ?: ""
+    val trackNumberInAlbum = call.parameters["numberInAlbum"]?.trim()?.toInt() ?: -1
+    val trackCoverUrl = call.parameters["coverUrl"]?.trim() ?: ""
+
     call.onYoutubeDLRequest<VideoInfo>(getVideoDataAsync(url).await()) { (title, _, _, fileName, thumbnailURL) ->
         convertAndRespondVideoFile(
+            url,
+            trackExt,
             videoFileNameWithoutExtension = fileName,
-            videoTitle = title,
-            videoThumbnail = thumbnailURL,
-            url = url,
-            trackExt = trackExt
+            trackTitle.takeIf(String::isNotEmpty) ?: title,
+            trackArtist,
+            trackAlbum,
+            trackNumberInAlbum,
+            videoThumbnailURL = thumbnailURL,
+            trackCoverUrl
         )
     }
 }
@@ -70,13 +80,27 @@ private suspend inline fun <T> ApplicationCall.onYoutubeDLRequest(
 private suspend fun ApplicationCall.respondVideoInfo(videoInfo: VideoInfo) = respond(message = videoInfo)
 
 private suspend fun ApplicationCall.convertAndRespondVideoFile(
-    videoFileNameWithoutExtension: String,
-    videoTitle: String,
-    videoThumbnail: String,
     url: String,
-    trackExt: TrackFileExtension
+    trackExt: TrackFileExtension,
+    videoFileNameWithoutExtension: String,
+    trackTitle: String,
+    trackArtist: String,
+    trackAlbum: String,
+    trackNumberInAlbum: Int,
+    videoThumbnailURL: String,
+    coverUrl: String? = null,
 ) = onYoutubeDLRequest<File>(
-    convertVideoAsync(url, trackExt, videoFileNameWithoutExtension, videoTitle, videoThumbnail).await()
+    convertVideoAsync(
+        url,
+        trackExt,
+        videoFileNameWithoutExtension,
+        trackTitle,
+        trackArtist,
+        trackAlbum,
+        trackNumberInAlbum,
+        videoThumbnailURL,
+        coverUrl
+    ).await()
 ) { convertedFile ->
     response.header(
         name = HttpHeaders.ContentDisposition,
@@ -84,7 +108,7 @@ private suspend fun ApplicationCall.convertAndRespondVideoFile(
             .Attachment
             .withParameter(
                 ContentDisposition.Parameters.FileName,
-                "$videoTitle.${trackExt.extension}"
+                "$trackTitle.${trackExt.extension}"
             )
             .toString()
     )
