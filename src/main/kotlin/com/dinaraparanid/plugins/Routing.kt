@@ -71,12 +71,33 @@ private suspend inline fun <T> ApplicationCall.onYoutubeDLRequest(
     onSuccess: ApplicationCall.(T) -> Unit
 ) = when (status) {
     is YtDlpRequestStatus.Success<*> -> onSuccess(status.castAndGetData())
+
     YtDlpRequestStatus.Error.NO_INTERNET -> println("WARNING: No Internet Connection")
-    YtDlpRequestStatus.Error.INCORRECT_URL_LINK -> respondText("Incorrect URL link")
-    YtDlpRequestStatus.Error.UNKNOWN_ERROR -> respondText("Unknown error")
-    YtDlpRequestStatus.Error.INVALID_DATA -> respondText("Invalid data")
-    YtDlpRequestStatus.Error.STREAM_CONVERSION -> respondText("Stream conversion is forbidden")
-    YtDlpRequestStatus.Error.GEO_RESTRICTED -> respondText("Sorry, this video is geo-restricted")
+
+    YtDlpRequestStatus.Error.INCORRECT_URL_LINK -> respondText(
+        text = "Incorrect URL link",
+        status = HttpStatusCode.BadRequest
+    )
+
+    YtDlpRequestStatus.Error.UNKNOWN_ERROR -> respondText(
+        text = "Unknown error",
+        status = HttpStatusCode.InternalServerError
+    )
+
+    YtDlpRequestStatus.Error.INVALID_DATA -> respondText(
+        text = "Invalid data",
+        status = HttpStatusCode.BadRequest
+    )
+
+    YtDlpRequestStatus.Error.STREAM_CONVERSION -> respondText(
+        text = "Stream conversion is forbidden",
+        status = HttpStatusCode.BadRequest
+    )
+
+    YtDlpRequestStatus.Error.GEO_RESTRICTED -> respondText(
+        text = "Sorry, this video is geo-restricted",
+        status = HttpStatusCode.Locked
+    )
 }
 
 private suspend fun ApplicationCall.respondVideoInfo(videoInfo: VideoInfo) = respond(message = videoInfo)
