@@ -6,14 +6,14 @@ import java.io.File
 
 @Serializable
 data class VideoInfo(
-    val title: String,
-    val duration: Long,
-    val description: String,
-    @SerialName("_filename") val fileName: String,
-    @SerialName("thumbnail") val thumbnailURL: String
+    @JvmField val title: String,
+    @JvmField val duration: Long,
+    @JvmField val description: String,
+    @SerialName("_filename") @JvmField val fileName: String,
+    @SerialName("thumbnail") @JvmField val thumbnailURL: String
 )
 
-inline val VideoInfo.withFileNameWithoutExt
+internal inline val VideoInfo.withFileNameWithoutExt
     get() = VideoInfo(
         title,
         duration,

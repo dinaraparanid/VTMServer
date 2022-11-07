@@ -5,11 +5,11 @@ plugins {
     id 'org.jetbrains.kotlin.plugin.serialization' version '1.7.20'
 }
 
-group "com.dinaraparanid"
-version "0.0.1"
-mainClassName = "com.dinaraparanid.ApplicationKt"
+group 'com.dinaraparanid'
+version '1.0.0'
+mainClassName = 'com.dinaraparanid.ApplicationKt'
 
-def isDevelopment = project.ext.has("development")
+final def isDevelopment = project.ext.has('development')
 applicationDefaultJvmArgs = ["-Dio.ktor.development=$isDevelopment"]
 
 repositories {
@@ -17,24 +17,20 @@ repositories {
     maven { url 'https://jitpack.io' }
 }
 
-final ktor_version = '2.1.3'
+final ktorVersion = '2.1.3'
 
 dependencies {
-    implementation "io.ktor:ktor-server-core-jvm:$ktor_version"
-    implementation "io.ktor:ktor-server-content-negotiation-jvm:$ktor_version"
-    implementation "io.ktor:ktor-serialization-kotlinx-json-jvm:$ktor_version"
-    implementation "io.ktor:ktor-server-netty-jvm:$ktor_version"
-    implementation "io.ktor:ktor-server-freemarker:$ktor_version"
-    implementation "io.ktor:ktor-server-freemarker-jvm:$ktor_version"
-    implementation "io.ktor:ktor-server-cors:$ktor_version"
+    implementation "io.ktor:ktor-server-core-jvm:$ktorVersion"
+    implementation "io.ktor:ktor-server-content-negotiation-jvm:$ktorVersion"
+    implementation "io.ktor:ktor-serialization-kotlinx-json-jvm:$ktorVersion"
+    implementation "io.ktor:ktor-server-netty-jvm:$ktorVersion"
+    implementation "io.ktor:ktor-server-freemarker:$ktorVersion"
+    implementation "io.ktor:ktor-server-freemarker-jvm:$ktorVersion"
+    implementation "io.ktor:ktor-server-cors:$ktorVersion"
     implementation 'ch.qos.logback:logback-classic:1.4.4'
-    implementation 'com.github.sapher:youtubedl-java:1.1'
     implementation group: 'net.jthink', name: 'jaudiotagger', version: '3.0.1'
-    implementation 'io.ktor:ktor-server-cors-jvm:2.1.2'
-    implementation 'io.ktor:ktor-server-compression-jvm:2.1.2'
-    implementation 'io.ktor:ktor-server-partial-content-jvm:2.1.2'
-    implementation 'io.ktor:ktor-server-auto-head-response-jvm:2.1.2'
-
-    testImplementation "io.ktor:ktor-server-tests-jvm:$ktor_version"
-    testImplementation "org.jetbrains.kotlin:kotlin-test-junit:$kotlin_version"
+    implementation "io.ktor:ktor-server-cors-jvm:$ktorVersion"
+    implementation "io.ktor:ktor-server-compression-jvm:$ktorVersion"
+    implementation "io.ktor:ktor-server-partial-content-jvm:$ktorVersion"
+    implementation "io.ktor:ktor-server-auto-head-response-jvm:$ktorVersion"
 }

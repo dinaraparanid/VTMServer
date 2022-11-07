@@ -1,9 +1,10 @@
 package com.dinaraparanid.plugins
 
 import com.dinaraparanid.converter.*
-import com.dinaraparanid.converter.YoutubeDLRequestStatus
 import com.dinaraparanid.converter.convertVideoAsync
-import com.dinaraparanid.converter.getVideoDataAsync
+import com.dinaraparanid.converter.ytdlp.YtDlp
+import com.dinaraparanid.converter.ytdlp.YtDlpRequestStatus
+import com.dinaraparanid.converter.ytdlp.castAndGetData
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.plugins.autohead.*
@@ -32,7 +33,7 @@ private suspend fun PipelineContext<Unit, ApplicationCall>.respondVideData() {
     val url = call.parameters["url"]?.trim()
         ?: return call.respondText("No URL to video provided", status = HttpStatusCode.BadRequest)
 
-    call.onYoutubeDLRequest<VideoInfo>(getVideoDataAsync(url).await()) { videoInfo ->
+    call.onYoutubeDLRequest<VideoInfo>(YtDlp.getVideoDataAsync(url).await()) { videoInfo ->
         respondVideoInfo(videoInfo)
     }
 }
@@ -48,9 +49,9 @@ private suspend fun PipelineContext<Unit, ApplicationCall>.convertAndRespondTrac
     val trackArtist = call.parameters["artist"]?.trim() ?: ""
     val trackAlbum = call.parameters["album"]?.trim() ?: ""
     val trackNumberInAlbum = call.parameters["numberInAlbum"]?.trim()?.toInt() ?: -1
-    val trackCoverUrl = call.parameters["coverUrl"]?.trim() ?: ""
+    val trackCoverUrl = call.parameters["coverUrl"]?.trim()
 
-    call.onYoutubeDLRequest<VideoInfo>(getVideoDataAsync(url).await()) { (title, _, _, fileName, thumbnailURL) ->
+    call.onYoutubeDLRequest<VideoInfo>(YtDlp.getVideoDataAsync(url).await()) { (title, _, _, fileName, thumbnailURL) ->
         convertAndRespondVideoFile(
             url,
             trackExt,
@@ -66,15 +67,16 @@ private suspend fun PipelineContext<Unit, ApplicationCall>.convertAndRespondTrac
 }
 
 private suspend inline fun <T> ApplicationCall.onYoutubeDLRequest(
-    status: YoutubeDLRequestStatus,
+    status: YtDlpRequestStatus,
     onSuccess: ApplicationCall.(T) -> Unit
 ) = when (status) {
-    is YoutubeDLRequestStatus.Success<*> -> onSuccess(status.castAndGetData())
-    YoutubeDLRequestStatus.Error.NO_INTERNET -> println("WARNING: No Internet Connection")
-    YoutubeDLRequestStatus.Error.INCORRECT_URL_LINK -> respondText("Incorrect URL link")
-    YoutubeDLRequestStatus.Error.UNKNOWN_ERROR -> respondText("Unknown error")
-    YoutubeDLRequestStatus.Error.INVALID_DATA -> respondText("Invalid data")
-    YoutubeDLRequestStatus.Error.STREAM_CONVERSION -> respondText("Stream conversion is forbidden")
+    is YtDlpRequestStatus.Success<*> -> onSuccess(status.castAndGetData())
+    YtDlpRequestStatus.Error.NO_INTERNET -> println("WARNING: No Internet Connection")
+    YtDlpRequestStatus.Error.INCORRECT_URL_LINK -> respondText("Incorrect URL link")
+    YtDlpRequestStatus.Error.UNKNOWN_ERROR -> respondText("Unknown error")
+    YtDlpRequestStatus.Error.INVALID_DATA -> respondText("Invalid data")
+    YtDlpRequestStatus.Error.STREAM_CONVERSION -> respondText("Stream conversion is forbidden")
+    YtDlpRequestStatus.Error.GEO_RESTRICTED -> respondText("Sorry, this video is geo-restricted")
 }
 
 private suspend fun ApplicationCall.respondVideoInfo(videoInfo: VideoInfo) = respond(message = videoInfo)

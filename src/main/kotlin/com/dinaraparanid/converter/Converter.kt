@@ -1,7 +1,8 @@
 package com.dinaraparanid.converter
 
-import com.sapher.youtubedl.YoutubeDL
-import com.sapher.youtubedl.YoutubeDLRequest
+import com.dinaraparanid.converter.ytdlp.YtDlp
+import com.dinaraparanid.converter.ytdlp.YtDlpRequest
+import com.dinaraparanid.converter.ytdlp.YtDlpRequestStatus
 import kotlinx.coroutines.*
 import org.jaudiotagger.audio.AudioFileIO
 import org.jaudiotagger.tag.FieldKey
@@ -25,7 +26,7 @@ private var downloadTries = 10
 private var isDownloaded = false
 
 @Volatile
-private var downloadError: YoutubeDLRequestStatus.Error? = null
+private var downloadError: YtDlpRequestStatus.Error? = null
 
 internal fun convertVideoAsync(
     url: String,
@@ -41,7 +42,7 @@ internal fun convertVideoAsync(
     val coverPath = "$CONVERTED_TRACKS_PATH/${videoFileNameWithoutExt}_cover.png"
     val storeThumbnailTask = storeThumbnailAsync(coverUrl ?: videoThumbnailURL, coverPath)
 
-    val request = YoutubeDLRequest(url, CONVERTED_TRACKS_PATH).apply {
+    val request = YtDlpRequest(url, CONVERTED_TRACKS_PATH).apply {
         setOption("audio-format", ext.extension)
         setOption("socket-timeout", 1)
         setOption("retries", "infinite")
@@ -55,7 +56,7 @@ internal fun convertVideoAsync(
 
     while (!isDownloaded && downloadTries > 0)
         kotlin.runCatching {
-            YoutubeDL.execute(request)
+            YtDlp.execute(request)
             isDownloaded = true
             return@runCatching
         }.getOrElse { exception ->
@@ -133,9 +134,9 @@ private suspend fun getFileOrError(
     trackNumberInAlbum: Int,
     coverPath: String,
     storeThumbnailTask: Job,
-): YoutubeDLRequestStatus {
+): YtDlpRequestStatus {
     val trackFile = File("$CONVERTED_TRACKS_PATH/$videoFileNameWithoutExt.${ext.extension}")
     setTags(trackFile, trackTitle, trackArtist, trackAlbum, trackNumberInAlbum, coverPath, storeThumbnailTask)
     removeFilesAfterTimeoutAsync(trackFile, coverFile = File(coverPath))
-    return YoutubeDLRequestStatus.Success(trackFile)
+    return YtDlpRequestStatus.Success(trackFile)
 }
