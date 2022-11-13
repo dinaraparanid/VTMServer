@@ -2,9 +2,9 @@ package com.dinaraparanid.plugins
 
 import com.dinaraparanid.converter.*
 import com.dinaraparanid.converter.convertVideoAsync
-import com.dinaraparanid.converter.ytdlp.YtDlp
-import com.dinaraparanid.converter.ytdlp.YtDlpRequestStatus
-import com.dinaraparanid.converter.ytdlp.castAndGetData
+import com.dinaraparanid.ytdlp_kt.VideoInfo
+import com.dinaraparanid.ytdlp_kt.YtDlp
+import com.dinaraparanid.ytdlp_kt.YtDlpRequestStatus
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.plugins.autohead.*
@@ -20,7 +20,7 @@ fun Application.configureRouting() {
 
     routing {
         get("/get_video/{url?}") {
-            respondVideData()
+            respondVideoData()
         }
 
         get("/convert_video/{url?}{ext?}{title?}{artist?}{album?}{numberInAlbum?}{coverUrl?}") {
@@ -29,7 +29,7 @@ fun Application.configureRouting() {
     }
 }
 
-private suspend fun PipelineContext<Unit, ApplicationCall>.respondVideData() {
+private suspend fun PipelineContext<Unit, ApplicationCall>.respondVideoData() {
     val url = call.parameters["url"]?.trim()
         ?: return call.respondText("No URL to video provided", status = HttpStatusCode.BadRequest)
 
@@ -72,29 +72,24 @@ private suspend inline fun <T> ApplicationCall.onYoutubeDLRequest(
 ) = when (status) {
     is YtDlpRequestStatus.Success<*> -> onSuccess(status.castAndGetData())
 
-    YtDlpRequestStatus.Error.NO_INTERNET -> println("WARNING: No Internet Connection")
+    is YtDlpRequestStatus.Error.NoInternet -> println("WARNING: No Internet Connection")
 
-    YtDlpRequestStatus.Error.INCORRECT_URL_LINK -> respondText(
+    is YtDlpRequestStatus.Error.IncorrectUrl -> respondText(
         text = "Incorrect URL link",
         status = HttpStatusCode.BadRequest
     )
 
-    YtDlpRequestStatus.Error.UNKNOWN_ERROR -> respondText(
+    is YtDlpRequestStatus.Error.UnknownError -> respondText(
         text = "Unknown error",
         status = HttpStatusCode.InternalServerError
     )
 
-    YtDlpRequestStatus.Error.INVALID_DATA -> respondText(
-        text = "Invalid data",
-        status = HttpStatusCode.BadRequest
-    )
-
-    YtDlpRequestStatus.Error.STREAM_CONVERSION -> respondText(
+    is YtDlpRequestStatus.Error.StreamConversion -> respondText(
         text = "Stream conversion is forbidden",
         status = HttpStatusCode.BadRequest
     )
 
-    YtDlpRequestStatus.Error.GEO_RESTRICTED -> respondText(
+    is YtDlpRequestStatus.Error.GeoRestricted -> respondText(
         text = "Sorry, this video is geo-restricted",
         status = HttpStatusCode.Locked
     )

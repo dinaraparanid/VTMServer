@@ -1,8 +1,8 @@
 package com.dinaraparanid.converter
 
-import com.dinaraparanid.converter.ytdlp.YtDlp
-import com.dinaraparanid.converter.ytdlp.YtDlpRequest
-import com.dinaraparanid.converter.ytdlp.YtDlpRequestStatus
+import com.dinaraparanid.ytdlp_kt.YtDlp
+import com.dinaraparanid.ytdlp_kt.YtDlpRequest
+import com.dinaraparanid.ytdlp_kt.YtDlpRequestStatus
 import kotlinx.coroutines.*
 import org.jaudiotagger.audio.AudioFileIO
 import org.jaudiotagger.tag.FieldKey
@@ -43,11 +43,11 @@ internal fun convertVideoAsync(
     val storeThumbnailTask = storeThumbnailAsync(coverUrl ?: videoThumbnailURL, coverPath)
 
     val request = YtDlpRequest(url, CONVERTED_TRACKS_PATH).apply {
-        setOption("audio-format", ext.extension)
-        setOption("socket-timeout", 1)
-        setOption("retries", "infinite")
-        setOption("extract-audio")
-        setOption("format", "best")
+        setOption("--audio-format", ext.extension)
+        setOption("--socket-timeout", "1")
+        setOption("--retries", "infinite")
+        setOption("--extract-audio")
+        setOption("--format", "best")
     }
 
     isDownloaded = false
@@ -55,13 +55,18 @@ internal fun convertVideoAsync(
     downloadError = null
 
     while (!isDownloaded && downloadTries > 0)
-        kotlin.runCatching {
-            YtDlp.execute(request)
-            isDownloaded = true
-            return@runCatching
-        }.getOrElse { exception ->
-            downloadTries--
-            downloadError = ConversionException(exception).error
+        YtDlp.executeAsync(request).await().let { requestStatus ->
+            when (requestStatus) {
+                is YtDlpRequestStatus.Error -> {
+                    downloadTries--
+                    downloadError = requestStatus
+                }
+
+                else -> {
+                    isDownloaded = true
+                    return@let
+                }
+            }
         }
 
     if (!isDownloaded)
