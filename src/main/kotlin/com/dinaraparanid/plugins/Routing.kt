@@ -1,14 +1,18 @@
 package com.dinaraparanid.plugins
 
+import com.dinaraparanid.auth.firebase.FirebaseAuthProvider
 import com.dinaraparanid.converter.*
 import com.dinaraparanid.converter.convertVideoAsync
+import com.dinaraparanid.models.User
 import com.dinaraparanid.ytdlp_kt.VideoInfo
 import com.dinaraparanid.ytdlp_kt.YtDlp
 import com.dinaraparanid.ytdlp_kt.YtDlpRequestStatus
 import io.ktor.http.*
 import io.ktor.server.application.*
+import io.ktor.server.auth.*
 import io.ktor.server.plugins.autohead.*
 import io.ktor.server.plugins.partialcontent.*
+import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.util.pipeline.*
@@ -19,12 +23,27 @@ fun Application.configureRouting() {
     install(AutoHeadResponse)
 
     routing {
+        authenticate(FirebaseAuthProvider.FIREBASE_AUTH) {
+            get("/convert_video/{url?}{ext?}{title?}{artist?}{album?}{numberInAlbum?}{coverUrl?}") {
+                convertAndRespondTrackFile(isAuthorized = true)
+            }
+        }
+
         get("/get_video/{url?}") {
             respondVideoData()
         }
 
-        get("/convert_video/{url?}{ext?}{title?}{artist?}{album?}{numberInAlbum?}{coverUrl?}") {
-            convertAndRespondTrackFile()
+        get("/convert_video/{url?}{ext?}") {
+            convertAndRespondTrackFile(isAuthorized = false)
+        }
+
+        post("/register") {
+            FirebaseAuthProvider.registerUserOrRespondAsync(call, user = call.receive())
+        }
+
+        get("/auth") {
+            val user = call.receive<User>()
+            FirebaseAuthProvider.getUserOrRespondAsync(call, user.email, user.password!!)
         }
     }
 }
@@ -38,18 +57,22 @@ private suspend fun PipelineContext<Unit, ApplicationCall>.respondVideoData() {
     }
 }
 
-private suspend fun PipelineContext<Unit, ApplicationCall>.convertAndRespondTrackFile() {
+private inline fun <T> getIfAuthorizedOrDefault(isAuthorized: Boolean, default: T, getData: () -> T?) =
+    if (isAuthorized) getData() ?: default else default
+
+@Suppress("IncorrectFormatting")
+private suspend fun PipelineContext<Unit, ApplicationCall>.convertAndRespondTrackFile(isAuthorized: Boolean) {
     val url = call.parameters["url"]?.trim()
         ?: return call.respondText("No URL to video provided", status = HttpStatusCode.BadRequest)
 
     val trackExt = call.parameters["ext"]?.trim()?.let(TrackFileExtension::fromString)
         ?: return call.respondText("No output file extension provided", status = HttpStatusCode.BadRequest)
 
-    val trackTitle = call.parameters["title"]?.trim() ?: ""
-    val trackArtist = call.parameters["artist"]?.trim() ?: ""
-    val trackAlbum = call.parameters["album"]?.trim() ?: ""
-    val trackNumberInAlbum = call.parameters["numberInAlbum"]?.trim()?.toInt() ?: -1
-    val trackCoverUrl = call.parameters["coverUrl"]?.trim()
+    val trackTitle = getIfAuthorizedOrDefault(isAuthorized, default = "") { call.parameters["title"]?.trim() }
+    val trackArtist = getIfAuthorizedOrDefault(isAuthorized, default = "") { call.parameters["artist"]?.trim() }
+    val trackAlbum = getIfAuthorizedOrDefault(isAuthorized, default = "") { call.parameters["album"]?.trim() }
+    val trackNumberInAlbum = getIfAuthorizedOrDefault(isAuthorized, default = -1) { call.parameters["numberInAlbum"]?.trim()?.toInt() }
+    val trackCoverUrl = if (isAuthorized) call.parameters["coverUrl"]?.trim() else null
 
     call.onYoutubeDLRequest<VideoInfo>(YtDlp.getVideoDataAsync(url).await()) { (title, _, _, fileName, thumbnailURL) ->
         convertAndRespondVideoFile(

@@ -17,6 +17,7 @@ fun Application.configureModules() {
     configureCompression()
     configureRouting()
     configureTemplating()
+    configureAuthentication()
 }
 
 fun main() = runBlocking {

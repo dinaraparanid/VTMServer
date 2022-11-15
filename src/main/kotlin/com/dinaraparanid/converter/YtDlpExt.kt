@@ -8,6 +8,6 @@ import kotlin.time.toKotlinDuration
 internal suspend fun YtDlp.runUpdateLoop() {
     while (true) {
         updateAsync().join()
-        delay(Duration.ofHours(1).toKotlinDuration())
+        delay(Duration.ofDays(1).toKotlinDuration())
     }
 }
