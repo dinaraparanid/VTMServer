@@ -43,7 +43,7 @@ fun Application.configureRouting() {
 
         get("/auth") {
             val user = call.receive<User>()
-            FirebaseAuthProvider.getUserOrRespondAsync(call, user.email, user.password!!)
+            FirebaseAuthProvider.getUserOrRespondAsyncCatching(call, user.email, user.password!!)
         }
     }
 }

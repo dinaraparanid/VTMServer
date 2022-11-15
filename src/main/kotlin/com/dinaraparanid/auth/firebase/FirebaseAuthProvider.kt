@@ -58,19 +58,27 @@ internal class FirebaseAuthProvider(config: FirebaseConfig) : AuthenticationProv
             }
         }
 
-        internal suspend fun getUserOrRespondAsync(call: ApplicationCall, email: String, password: String) {
+        @Suppress("DirectUseOfResultType")
+        internal suspend fun getUserOrRespondAsyncCatching(call: ApplicationCall, email: String, password: String) =
             kotlin.runCatching {
                 withContext(Dispatchers.IO) {
                     firebaseAuth
                         .getUserByEmail(email)
-                        .takeIf { user -> verifyPassword(password, user.customClaims[PASSWORD_KEY] as String) }
+                        .takeIf { user ->
+                            (user.customClaims[PASSWORD_KEY] as? String?)
+                                ?.let { verifyPassword(password, it) } == true
+                        }
                         ?.let(::User)
-                        ?: call.respond(status = HttpStatusCode.NotFound, "Invalid password")
+                        ?.let { Result.success(it) }
+                        ?: kotlin.run {
+                            call.respond(status = HttpStatusCode.NotFound, "Invalid password")
+                            Result.failure(IllegalArgumentException())
+                        }
                 }
             }.getOrElse {
                 call.respondAuthError(it as FirebaseAuthException)
+                Result.failure(it)
             }
-        }
     }
 
     override suspend fun onAuthenticate(context: AuthenticationContext) {

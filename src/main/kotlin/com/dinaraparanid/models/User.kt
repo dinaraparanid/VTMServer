@@ -7,7 +7,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 internal data class User(
-    @JvmField val uid: String,
+    @JvmField val uid: String? = null,
     @JvmField val email: String,
     @JvmField val login: String,
     @JvmField val password: String? = null
@@ -21,6 +21,6 @@ internal data class User(
     internal constructor(firebaseUserRecord: UserRecord) : this(
         firebaseUserRecord.uid,
         firebaseUserRecord.email,
-        firebaseUserRecord.displayName
+        firebaseUserRecord.displayName ?: firebaseUserRecord.email
     )
 }
