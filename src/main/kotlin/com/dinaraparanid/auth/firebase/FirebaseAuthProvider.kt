@@ -1,9 +1,7 @@
 package com.dinaraparanid.auth.firebase
 
 import com.dinaraparanid.config.firebase.FirebaseAdmin
-import com.dinaraparanid.models.User
 import com.google.firebase.auth.*
-import io.ktor.http.*
 import io.ktor.http.auth.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
@@ -38,47 +36,6 @@ internal class FirebaseAuthProvider(config: FirebaseConfig) : AuthenticationProv
 
             return getTokenData(call, token)
         }
-
-        internal suspend fun registerUserOrRespondAsync(call: ApplicationCall, user: User) {
-            kotlin.runCatching {
-                withContext(Dispatchers.IO) {
-                    call.respond(
-                        UserRecord.CreateRequest()
-                            .setEmail(user.email)
-                            .setDisplayName(user.login)
-                            .let(firebaseAuth::createUser)
-                            .updateRequest()
-                            .setCustomClaims(mapOf(PASSWORD_KEY to hashPassword(user.password!!)))
-                            .let(firebaseAuth::updateUser)
-                            .let(::User)
-                    )
-                }
-            }.getOrElse {
-                call.respondAuthError(it as FirebaseAuthException)
-            }
-        }
-
-        @Suppress("DirectUseOfResultType")
-        internal suspend fun getUserOrRespondAsyncCatching(call: ApplicationCall, email: String, password: String) =
-            kotlin.runCatching {
-                withContext(Dispatchers.IO) {
-                    firebaseAuth
-                        .getUserByEmail(email)
-                        .takeIf { user ->
-                            (user.customClaims[PASSWORD_KEY] as? String?)
-                                ?.let { verifyPassword(password, it) } == true
-                        }
-                        ?.let(::User)
-                        ?.let { Result.success(it) }
-                        ?: kotlin.run {
-                            call.respond(status = HttpStatusCode.NotFound, "Invalid password")
-                            Result.failure(IllegalArgumentException())
-                        }
-                }
-            }.getOrElse {
-                call.respondAuthError(it as FirebaseAuthException)
-                Result.failure(it)
-            }
     }
 
     override suspend fun onAuthenticate(context: AuthenticationContext) {

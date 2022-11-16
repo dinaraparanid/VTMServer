@@ -34,6 +34,5 @@ dependencies {
     implementation "io.ktor:ktor-server-auto-head-response:$ktorVersion"
     implementation "io.ktor:ktor-server-auth:$ktorVersion"
     implementation 'com.github.dinaraparanid:YtDlp-kt:master-SNAPSHOT'
-    implementation 'com.google.firebase:firebase-admin:9.1.0'
-    implementation 'com.github.patrickfav.bcrypt:bcrypt:v0.9.0'
+    implementation 'com.google.firebase:firebase-admin:9.1.1'
 }

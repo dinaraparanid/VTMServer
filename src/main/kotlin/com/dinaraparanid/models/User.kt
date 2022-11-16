@@ -10,12 +10,11 @@ internal data class User(
     @JvmField val uid: String? = null,
     @JvmField val email: String,
     @JvmField val login: String,
-    @JvmField val password: String? = null
 ) : Principal {
     internal constructor(firebaseToken: FirebaseToken) : this(
         firebaseToken.uid,
         firebaseToken.email,
-        firebaseToken.name
+        firebaseToken.name ?: firebaseToken.email
     )
 
     internal constructor(firebaseUserRecord: UserRecord) : this(

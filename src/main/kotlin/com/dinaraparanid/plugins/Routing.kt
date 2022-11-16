@@ -3,7 +3,6 @@ package com.dinaraparanid.plugins
 import com.dinaraparanid.auth.firebase.FirebaseAuthProvider
 import com.dinaraparanid.converter.*
 import com.dinaraparanid.converter.convertVideoAsync
-import com.dinaraparanid.models.User
 import com.dinaraparanid.ytdlp_kt.VideoInfo
 import com.dinaraparanid.ytdlp_kt.YtDlp
 import com.dinaraparanid.ytdlp_kt.YtDlpRequestStatus
@@ -35,15 +34,6 @@ fun Application.configureRouting() {
 
         get("/convert_video/{url?}{ext?}") {
             convertAndRespondTrackFile(isAuthorized = false)
-        }
-
-        post("/register") {
-            FirebaseAuthProvider.registerUserOrRespondAsync(call, user = call.receive())
-        }
-
-        get("/auth") {
-            val user = call.receive<User>()
-            FirebaseAuthProvider.getUserOrRespondAsyncCatching(call, user.email, user.password!!)
         }
     }
 }
