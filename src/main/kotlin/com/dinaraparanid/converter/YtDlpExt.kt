@@ -5,7 +5,7 @@ import kotlinx.coroutines.delay
 import java.time.Duration
 import kotlin.time.toKotlinDuration
 
-internal suspend fun YtDlp.runUpdateLoop() {
+suspend inline fun YtDlp.runUpdateLoop() {
     while (true) {
         updateAsync().join()
         delay(Duration.ofDays(1).toKotlinDuration())

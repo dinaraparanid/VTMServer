@@ -38,4 +38,3 @@ out/
 /vtm_tracks
 vtmconverter-firebase-adminsdk.json
 /src/main/kotlin/com/dinaraparanid/config/firebase/FirebaseServiceAccountId.kt
-/src/main/kotlin/com/dinaraparanid/auth/firebase/PasswordHasher.kt

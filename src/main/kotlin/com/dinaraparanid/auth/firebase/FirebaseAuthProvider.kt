@@ -9,11 +9,11 @@ import io.ktor.server.response.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-internal class FirebaseAuthProvider(config: FirebaseConfig) : AuthenticationProvider(config) {
+class FirebaseAuthProvider(config: FirebaseConfig) : AuthenticationProvider(config) {
     private val authFunction = config.firebaseAuthenticationFunction
 
-    internal companion object {
-        internal const val FIREBASE_AUTH = "FIREBASE_AUTH"
+    companion object {
+        const val FIREBASE_AUTH = "FIREBASE_AUTH"
         private const val FirebaseJWTAuthKey = "FirebaseAuth"
         private val firebaseAuth = FirebaseAuth.getInstance(FirebaseAdmin.app)
 

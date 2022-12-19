@@ -15,13 +15,20 @@ fun Application.configureModules() {
     configureSerialization()
     configureCORS()
     configureCompression()
+    configureAuthentication()
     configureRouting()
     configureTemplating()
-    configureAuthentication()
 }
 
 fun main() = runBlocking {
     launch(Dispatchers.IO) { YtDlp.runUpdateLoop() }
-    embeddedServer(Netty, 1337) { configureModules() }.start(wait = true)
+
+    embeddedServer(
+        factory = Netty,
+        port = 1337,
+        module = Application::ApplicationModule
+    ).start(wait = true)
     Unit
 }
+
+fun Application.ApplicationModule() = configureModules()

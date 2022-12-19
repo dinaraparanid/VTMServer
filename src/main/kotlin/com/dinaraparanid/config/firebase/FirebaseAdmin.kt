@@ -5,11 +5,11 @@ import com.google.firebase.FirebaseApp
 import com.google.firebase.FirebaseOptions
 import java.io.FileInputStream
 
-internal object FirebaseAdmin {
-    internal lateinit var app: FirebaseApp
+object FirebaseAdmin {
+    lateinit var app: FirebaseApp
         private set
 
-    internal fun init() {
+    fun init() {
         app = FirebaseApp.initializeApp(
             FileInputStream("vtmconverter-firebase-adminsdk.json").use { serviceAccount ->
                 FirebaseOptions.builder()

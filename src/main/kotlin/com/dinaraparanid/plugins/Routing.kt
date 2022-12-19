@@ -22,18 +22,20 @@ fun Application.configureRouting() {
     install(AutoHeadResponse)
 
     routing {
-        authenticate(FirebaseAuthProvider.FIREBASE_AUTH) {
-            get("/convert_video/{url?}{ext?}{title?}{artist?}{album?}{numberInAlbum?}{coverUrl?}") {
-                convertAndRespondTrackFile(isAuthorized = true)
-            }
-        }
-
         get("/get_video/{url?}") {
             respondVideoData()
         }
 
-        get("/convert_video/{url?}{ext?}") {
-            convertAndRespondTrackFile(isAuthorized = false)
+        route("/convert_video") {
+            authenticate(FirebaseAuthProvider.FIREBASE_AUTH) {
+                get("/{url?}{ext?}{title?}{artist?}{album?}{numberInAlbum?}{coverUrl?}") {
+                    convertAndRespondTrackFile(isAuthorized = true)
+                }
+            }
+
+            get("/{url?}{ext?}") {
+                convertAndRespondTrackFile(isAuthorized = false)
+            }
         }
     }
 }
@@ -61,7 +63,8 @@ private suspend fun PipelineContext<Unit, ApplicationCall>.convertAndRespondTrac
     val trackTitle = getIfAuthorizedOrDefault(isAuthorized, default = "") { call.parameters["title"]?.trim() }
     val trackArtist = getIfAuthorizedOrDefault(isAuthorized, default = "") { call.parameters["artist"]?.trim() }
     val trackAlbum = getIfAuthorizedOrDefault(isAuthorized, default = "") { call.parameters["album"]?.trim() }
-    val trackNumberInAlbum = getIfAuthorizedOrDefault(isAuthorized, default = -1) { call.parameters["numberInAlbum"]?.trim()?.toInt() }
+    val trackNumberInAlbum =
+        getIfAuthorizedOrDefault(isAuthorized, default = -1) { call.parameters["numberInAlbum"]?.trim()?.toInt() }
     val trackCoverUrl = if (isAuthorized) call.parameters["coverUrl"]?.trim() else null
 
     call.onYoutubeDLRequest<VideoInfo>(YtDlp.getVideoDataAsync(url).await()) { (title, _, _, fileName, thumbnailURL) ->

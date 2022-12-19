@@ -28,7 +28,7 @@ private var isDownloaded = false
 @Volatile
 private var downloadError: YtDlpRequestStatus.Error? = null
 
-internal fun convertVideoAsync(
+fun convertVideoAsync(
     url: String,
     ext: TrackFileExtension,
     videoFileNameWithoutExt: String,
@@ -100,7 +100,7 @@ private fun Tag.setCoverCatching(coverPath: String) = kotlin.runCatching {
     setField(ArtworkFactory.createArtworkFromFile(File(coverPath)))
 }
 
-private suspend fun setTags(
+private suspend inline fun setTags(
     trackFile: File,
     trackTitle: String,
     trackArtist: String,
@@ -108,18 +108,17 @@ private suspend fun setTags(
     trackNumberInAlbum: Int,
     coverPath: String,
     storeThumbnailTask: Job,
-) =
-    AudioFileIO.read(trackFile).run {
-        tagOrCreateAndSetDefault?.run {
-            setField(FieldKey.TITLE, trackTitle)
-            setField(FieldKey.ARTIST, trackArtist)
-            setField(FieldKey.ALBUM, trackAlbum)
-            setField(FieldKey.TRACK, trackNumberInAlbum.toString())
-            storeThumbnailTask.join()
-            setCoverCatching(coverPath)
-        }
-        commit()
+) = AudioFileIO.read(trackFile).run {
+    tagOrCreateAndSetDefault?.run {
+        setField(FieldKey.TITLE, trackTitle)
+        setField(FieldKey.ARTIST, trackArtist)
+        setField(FieldKey.ALBUM, trackAlbum)
+        setField(FieldKey.TRACK, trackNumberInAlbum.toString())
+        storeThumbnailTask.join()
+        setCoverCatching(coverPath)
     }
+    commit()
+}
 
 private fun removeFilesAfterTimeoutAsync(
     trackFile: File,
@@ -130,7 +129,7 @@ private fun removeFilesAfterTimeoutAsync(
     trackFile.delete()
 }
 
-private suspend fun getFileOrError(
+private suspend inline fun getFileOrError(
     ext: TrackFileExtension,
     videoFileNameWithoutExt: String,
     trackTitle: String,
