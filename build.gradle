@@ -22,8 +22,8 @@ final ktorVersion = '2.2.1'
 dependencies {
     implementation 'ch.qos.logback:logback-classic:1.4.4'
     implementation group: 'net.jthink', name: 'jaudiotagger', version: '3.0.1'
-    implementation 'com.github.dinaraparanid:YtDlp-kt:master-SNAPSHOT'
     implementation 'com.google.firebase:firebase-admin:9.1.1'
+    implementation 'com.github.dinaraparanid:YtDlp-kt:e1947a1f7a'
     implementation "io.ktor:ktor-server-core-jvm:$ktorVersion"
     implementation "io.ktor:ktor-server-content-negotiation:$ktorVersion"
     implementation "io.ktor:ktor-serialization-kotlinx-json:$ktorVersion"

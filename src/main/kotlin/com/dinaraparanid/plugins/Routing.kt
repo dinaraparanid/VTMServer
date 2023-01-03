@@ -41,7 +41,7 @@ private suspend inline fun PipelineContext<Unit, ApplicationCall>.respondVideoDa
     val url = call.parameters["url"]?.trim()
         ?: return call.respondText("No URL to video provided", status = HttpStatusCode.BadRequest)
 
-    call.onYoutubeDLRequest<VideoInfo>(YtDlp.getVideoDataAsync(url).await()) { videoInfo ->
+    call.onYoutubeDLRequest<VideoInfo>(YtDlp.getVideoDataAsync(url, isPythonExecutable = true).await()) { videoInfo ->
         respondVideoInfo(videoInfo)
     }
 }
@@ -77,7 +77,9 @@ private suspend inline fun PipelineContext<Unit, ApplicationCall>.convertAndResp
         call.parameters["coverUrl"]?.trim()
     }
 
-    call.onYoutubeDLRequest<VideoInfo>(YtDlp.getVideoDataAsync(url).await()) { (title, _, _, fileName, thumbnailURL) ->
+    call.onYoutubeDLRequest<VideoInfo>(
+        YtDlp.getVideoDataAsync(url, isPythonExecutable = true).await()
+    ) { (title, _, _, fileName, thumbnailURL) ->
         convertAndRespondVideoFile(
             url = url,
             trackExt = trackExt,

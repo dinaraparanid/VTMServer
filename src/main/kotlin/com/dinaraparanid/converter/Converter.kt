@@ -55,7 +55,7 @@ fun convertVideoAsync(
     downloadError = null
 
     while (!isDownloaded && downloadTries > 0)
-        YtDlp.executeAsync(request).await().let { requestStatus ->
+        YtDlp.executeAsync(request, isPythonExecutable = true).await().let { requestStatus ->
             when (requestStatus) {
                 is YtDlpRequestStatus.Error -> {
                     downloadTries--
