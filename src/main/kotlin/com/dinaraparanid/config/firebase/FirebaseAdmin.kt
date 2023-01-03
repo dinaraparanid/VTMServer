@@ -3,20 +3,21 @@ package com.dinaraparanid.config.firebase
 import com.google.auth.oauth2.GoogleCredentials
 import com.google.firebase.FirebaseApp
 import com.google.firebase.FirebaseOptions
-import java.io.FileInputStream
 
 object FirebaseAdmin {
+    private val firebaseServiceAccountId = System.getenv("FIREBASE_SERVICE_ACCOUNT_ID")
+
+    private val firebaseAdminSdkJson = System.getenv("FIREBASE_ADMIN_SDK_JSON")
+
     lateinit var app: FirebaseApp
         private set
 
     fun init() {
         app = FirebaseApp.initializeApp(
-            FileInputStream("vtmconverter-firebase-adminsdk.json").use { serviceAccount ->
-                FirebaseOptions.builder()
-                    .setCredentials(GoogleCredentials.fromStream(serviceAccount))
-                    .setServiceAccountId(firebaseServiceAccountId)
-                    .build()
-            }
+            FirebaseOptions.builder()
+                .setCredentials(GoogleCredentials.fromStream(firebaseAdminSdkJson.byteInputStream()))
+                .setServiceAccountId(firebaseServiceAccountId)
+                .build()
         )
     }
 }
