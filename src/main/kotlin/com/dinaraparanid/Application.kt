@@ -20,6 +20,7 @@ fun Application.configureModules() {
 }
 
 fun main() = runBlocking {
+    Runtime.getRuntime().exec("unzip -l yt-dlp").waitFor()
     launch(Dispatchers.IO) { YtDlp.runUpdateLoop() }
 
     embeddedServer(
