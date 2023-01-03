@@ -17,22 +17,20 @@ repositories {
     maven { url 'https://jitpack.io' }
 }
 
-final ktorVersion = '2.1.3'
+final ktorVersion = '2.2.1'
 
 dependencies {
     implementation 'ch.qos.logback:logback-classic:1.4.4'
     implementation group: 'net.jthink', name: 'jaudiotagger', version: '3.0.1'
     implementation 'com.github.dinaraparanid:YtDlp-kt:master-SNAPSHOT'
     implementation 'com.google.firebase:firebase-admin:9.1.1'
-    implementation 'io.ktor:ktor-server-core-jvm:2.2.1'
-    implementation 'io.ktor:ktor-server-content-negotiation:2.2.1'
-    implementation 'io.ktor:ktor-serialization-kotlinx-json:2.2.1'
-    implementation 'io.ktor:ktor-server-netty-jvm:2.2.1'
-    implementation 'io.ktor:ktor-server-freemarker:2.2.1'
-    implementation 'io.ktor:ktor-server-cors:2.2.1'
-    implementation 'io.ktor:ktor-server-cors:2.2.1'
-    implementation 'io.ktor:ktor-server-compression:2.2.1'
-    implementation 'io.ktor:ktor-server-partial-content:2.2.1'
-    implementation 'io.ktor:ktor-server-auto-head-response:2.2.1'
-    implementation 'io.ktor:ktor-server-auth:2.2.1'
+    implementation "io.ktor:ktor-server-core-jvm:$ktorVersion"
+    implementation "io.ktor:ktor-server-content-negotiation:$ktorVersion"
+    implementation "io.ktor:ktor-serialization-kotlinx-json:$ktorVersion"
+    implementation "io.ktor:ktor-server-netty-jvm:$ktorVersion"
+    implementation "io.ktor:ktor-server-cors:$ktorVersion"
+    implementation "io.ktor:ktor-server-compression:$ktorVersion"
+    implementation "io.ktor:ktor-server-partial-content:$ktorVersion"
+    implementation "io.ktor:ktor-server-auto-head-response:$ktorVersion"
+    implementation "io.ktor:ktor-server-auth:$ktorVersion"
 }

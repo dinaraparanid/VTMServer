@@ -62,17 +62,14 @@ fun convertVideoAsync(
                     downloadError = requestStatus
                 }
 
-                else -> {
-                    isDownloaded = true
-                    return@let
-                }
+                else -> isDownloaded = true
             }
         }
 
     if (!isDownloaded)
         return@async downloadError!!
 
-    return@async getFileOrError(
+    getFileOrError(
         ext,
         videoFileNameWithoutExt,
         trackTitle,

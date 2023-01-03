@@ -1,7 +1,7 @@
 package com.dinaraparanid.plugins
 
 import com.dinaraparanid.auth.firebase.FirebaseAuthProvider
-import com.dinaraparanid.converter.*
+import com.dinaraparanid.converter.TrackFileExtension
 import com.dinaraparanid.converter.convertVideoAsync
 import com.dinaraparanid.ytdlp_kt.VideoInfo
 import com.dinaraparanid.ytdlp_kt.YtDlp
@@ -11,7 +11,6 @@ import io.ktor.server.application.*
 import io.ktor.server.auth.*
 import io.ktor.server.plugins.autohead.*
 import io.ktor.server.plugins.partialcontent.*
-import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.util.pipeline.*
@@ -26,21 +25,19 @@ fun Application.configureRouting() {
             respondVideoData()
         }
 
-        route("/convert_video") {
-            authenticate(FirebaseAuthProvider.FIREBASE_AUTH) {
-                get("/{url?}{ext?}{title?}{artist?}{album?}{numberInAlbum?}{coverUrl?}") {
-                    convertAndRespondTrackFile(isAuthorized = true)
-                }
-            }
+        get("/convert_video/{url?}{ext?}") {
+            convertAndRespondTrackFile(isAuthorized = false)
+        }
 
-            get("/{url?}{ext?}") {
-                convertAndRespondTrackFile(isAuthorized = false)
+        authenticate(FirebaseAuthProvider.FIREBASE_AUTH) {
+            get("/convert_video_auth/{url?}{ext?}{title?}{artist?}{album?}{numberInAlbum?}{coverUrl?}") {
+                convertAndRespondTrackFile(isAuthorized = true)
             }
         }
     }
 }
 
-private suspend fun PipelineContext<Unit, ApplicationCall>.respondVideoData() {
+private suspend inline fun PipelineContext<Unit, ApplicationCall>.respondVideoData() {
     val url = call.parameters["url"]?.trim()
         ?: return call.respondText("No URL to video provided", status = HttpStatusCode.BadRequest)
 
@@ -52,32 +49,45 @@ private suspend fun PipelineContext<Unit, ApplicationCall>.respondVideoData() {
 private inline fun <T> getIfAuthorizedOrDefault(isAuthorized: Boolean, default: T, getData: () -> T?) =
     if (isAuthorized) getData() ?: default else default
 
-@Suppress("IncorrectFormatting")
-private suspend fun PipelineContext<Unit, ApplicationCall>.convertAndRespondTrackFile(isAuthorized: Boolean) {
+private inline fun <T> getIfAuthorizedOrDefaultNullable(isAuthorized: Boolean, default: T?, getData: () -> T?) =
+    if (isAuthorized) getData() else default
+
+private suspend inline fun PipelineContext<Unit, ApplicationCall>.convertAndRespondTrackFile(isAuthorized: Boolean) {
     val url = call.parameters["url"]?.trim()
         ?: return call.respondText("No URL to video provided", status = HttpStatusCode.BadRequest)
 
     val trackExt = call.parameters["ext"]?.trim()?.let(TrackFileExtension::fromString)
         ?: return call.respondText("No output file extension provided", status = HttpStatusCode.BadRequest)
 
-    val trackTitle = getIfAuthorizedOrDefault(isAuthorized, default = "") { call.parameters["title"]?.trim() }
-    val trackArtist = getIfAuthorizedOrDefault(isAuthorized, default = "") { call.parameters["artist"]?.trim() }
+    val trackTitle = getIfAuthorizedOrDefault(isAuthorized, default = "") {
+        call.parameters["title"]?.trim()
+    }
+
+    val trackArtist = getIfAuthorizedOrDefault(isAuthorized, default = "") {
+        call.parameters["artist"]?.trim()
+    }
+
     val trackAlbum = getIfAuthorizedOrDefault(isAuthorized, default = "") { call.parameters["album"]?.trim() }
-    val trackNumberInAlbum =
-        getIfAuthorizedOrDefault(isAuthorized, default = -1) { call.parameters["numberInAlbum"]?.trim()?.toInt() }
-    val trackCoverUrl = if (isAuthorized) call.parameters["coverUrl"]?.trim() else null
+
+    val trackNumberInAlbum = getIfAuthorizedOrDefault(isAuthorized, default = -1) {
+        call.parameters["numberInAlbum"]?.trim()?.toInt()
+    }
+
+    val trackCoverUrl = getIfAuthorizedOrDefaultNullable(isAuthorized, default = null) {
+        call.parameters["coverUrl"]?.trim()
+    }
 
     call.onYoutubeDLRequest<VideoInfo>(YtDlp.getVideoDataAsync(url).await()) { (title, _, _, fileName, thumbnailURL) ->
         convertAndRespondVideoFile(
-            url,
-            trackExt,
+            url = url,
+            trackExt = trackExt,
             videoFileNameWithoutExtension = fileName,
-            trackTitle.takeIf(String::isNotEmpty) ?: title,
-            trackArtist,
-            trackAlbum,
-            trackNumberInAlbum,
+            trackTitle = trackTitle.takeIf(String::isNotEmpty) ?: title,
+            trackArtist = trackArtist,
+            trackAlbum = trackAlbum,
+            trackNumberInAlbum = trackNumberInAlbum,
             videoThumbnailURL = thumbnailURL,
-            trackCoverUrl
+            trackCoverUrl = trackCoverUrl
         )
     }
 }
@@ -111,9 +121,9 @@ private suspend inline fun <T> ApplicationCall.onYoutubeDLRequest(
     )
 }
 
-private suspend fun ApplicationCall.respondVideoInfo(videoInfo: VideoInfo) = respond(message = videoInfo)
+private suspend inline fun ApplicationCall.respondVideoInfo(videoInfo: VideoInfo) = respond(message = videoInfo)
 
-private suspend fun ApplicationCall.convertAndRespondVideoFile(
+private suspend inline fun ApplicationCall.convertAndRespondVideoFile(
     url: String,
     trackExt: TrackFileExtension,
     videoFileNameWithoutExtension: String,
@@ -122,7 +132,7 @@ private suspend fun ApplicationCall.convertAndRespondVideoFile(
     trackAlbum: String,
     trackNumberInAlbum: Int,
     videoThumbnailURL: String,
-    coverUrl: String? = null,
+    trackCoverUrl: String? = null,
 ) = onYoutubeDLRequest<File>(
     convertVideoAsync(
         url,
@@ -133,7 +143,7 @@ private suspend fun ApplicationCall.convertAndRespondVideoFile(
         trackAlbum,
         trackNumberInAlbum,
         videoThumbnailURL,
-        coverUrl
+        trackCoverUrl
     ).await()
 ) { convertedFile ->
     response.header(
