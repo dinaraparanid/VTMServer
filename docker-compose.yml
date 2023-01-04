@@ -7,7 +7,7 @@ services:
     environment:
       - FIREBASE_SERVICE_ACCOUNT_ID='firebase-adminsdk-f1577@vtmconverter.iam.gserviceaccount.com'
     volumes:
-      - ./:/gradleproject
+      - ./:/VTMServer
     ports:
       - 8080:8080
     expose:
