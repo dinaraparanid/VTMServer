@@ -15,7 +15,7 @@ fun Application.configureModules() {
     configureSerialization()
     configureCORS()
     configureCompression()
-    configureAuthentication()
+    //configureAuthentication()
     configureRouting()
 }
 

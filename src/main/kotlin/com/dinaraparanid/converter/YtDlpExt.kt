@@ -7,7 +7,7 @@ import kotlin.time.toKotlinDuration
 
 suspend inline fun YtDlp.runUpdateLoop() {
     while (true) {
-        updateAsync(isPythonExecutable = true).join()
+        updateAsync(isPythonExecutable = false).join()
         delay(Duration.ofDays(1).toKotlinDuration())
     }
 }
