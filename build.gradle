@@ -1,3 +1,5 @@
+import io.ktor.plugin.features.JreVersion
+
 plugins {
     id 'application'
     id 'org.jetbrains.kotlin.jvm' version '1.7.20'
@@ -17,7 +19,7 @@ repositories {
     maven { url 'https://jitpack.io' }
 }
 
-final ktorVersion = '2.2.1'
+final ktorVersion = '2.2.2'
 
 dependencies {
     implementation 'ch.qos.logback:logback-classic:1.4.4'
@@ -46,9 +48,14 @@ tasks.jar {
 }
 
 task fatJar(type: Jar) {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
     manifest {
         attributes 'Main-Class': mainClassName
     }
+
+    exclude 'META-INF/*.RSA', 'META-INF/*.SF','META-INF/*.DSA'
+
     from { configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
     with jar
 }
