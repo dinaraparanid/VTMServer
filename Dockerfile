@@ -4,7 +4,7 @@ WORKDIR /home/gradle/src
 RUN gradle buildFatJar --no-daemon
 
 FROM openjdk:17-alpine
-EXPOSE 8080:8080
+EXPOSE 1337:1337
 RUN apk add --no-cache bash
 RUN wget https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -O /usr/local/bin/yt-dlp
 RUN chmod a+rx /usr/local/bin/yt-dlp
