@@ -10,5 +10,4 @@ RUN wget https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -O /us
 RUN chmod a+rx /usr/local/bin/yt-dlp
 RUN mkdir /app
 COPY --from=build /home/gradle/src/build/libs/*.jar /app/vtm-server.jar
-CMD java -jar /app/vtm-server.jar
 # ENTRYPOINT ["java","-jar","/app/vtm-server.jar"]
