@@ -1,9 +1,13 @@
-FROM openjdk:17-jdk-alpine
+FROM gradle:7-jdk17 AS build
+COPY --chown=gradle:gradle . /home/gradle/src
+WORKDIR /home/gradle/src
+RUN gradle buildFatJar --no-daemon
 
+FROM openjdk:17-alpine
+EXPOSE 8080:8080
 RUN apk add --no-cache bash
 RUN wget https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -O /usr/local/bin/yt-dlp
 RUN chmod a+rx /usr/local/bin/yt-dlp
-
-WORKDIR /VTMServer
-
-CMD bash chmod +x gradlew && bash gradlew fatJar && cp /VTMServer/build/libs/*jar /VTMServer/build/classes/kotlin/main/com/dinaraparanid/VTMServer.jar && java -jar /VTMServer/build/classes/kotlin/main/com/dinaraparanid/VTMServer.jar
+RUN mkdir /app
+COPY --from=build /home/gradle/src/build/libs/*.jar /app/ktor-docker-sample.jar
+ENTRYPOINT ["java","-jar","/app/ktor-docker-sample.jar"]
