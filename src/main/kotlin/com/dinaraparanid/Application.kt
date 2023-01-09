@@ -24,7 +24,7 @@ fun main() = runBlocking {
 
     embeddedServer(
         factory = Netty,
-        port = 1337,
+        port = 8080,
         module = Application::ApplicationModule
     ).start(wait = true)
     Unit
