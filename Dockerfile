@@ -6,4 +6,4 @@ RUN chmod a+rx /usr/local/bin/yt-dlp
 
 WORKDIR /VTMServer
 
-CMD bash gradle wrapper && bash gradlew fatJar && cp /VTMServer/build/libs/*jar /VTMServer/build/classes/kotlin/main/com/dinaraparanid/VTMServer.jar && java -jar /VTMServer/build/classes/kotlin/main/com/dinaraparanid/VTMServer.jar
+CMD bash chmod +x gradlew && bash gradlew fatJar && cp /VTMServer/build/libs/*jar /VTMServer/build/classes/kotlin/main/com/dinaraparanid/VTMServer.jar && java -jar /VTMServer/build/classes/kotlin/main/com/dinaraparanid/VTMServer.jar
