@@ -1,11 +1,10 @@
-package com.dinaraparanid.plugins
+package com.paranid5.vtmserver.plugins
 
-import com.dinaraparanid.auth.firebase.FirebaseAuthProvider
-import com.dinaraparanid.converter.TrackFileExtension
-import com.dinaraparanid.converter.convertVideoAsync
-import com.dinaraparanid.ytdlp_kt.VideoInfo
-import com.dinaraparanid.ytdlp_kt.YtDlp
-import com.dinaraparanid.ytdlp_kt.YtDlpRequestStatus
+import arrow.core.Either
+import com.paranid5.vtmserver.auth.firebase.FirebaseAuthProvider
+import com.paranid5.vtmserver.data.VideoInfo
+import com.paranid5.vtmserver.data.serializableInfo
+import com.paranid5.vtmserver.domain.*
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
@@ -41,9 +40,9 @@ private suspend inline fun PipelineContext<Unit, ApplicationCall>.respondVideoDa
     val url = call.parameters["url"]?.trim()
         ?: return call.respondText("No URL to video provided", status = HttpStatusCode.BadRequest)
 
-    call.onYoutubeDLRequest<VideoInfo>(YtDlp.getVideoDataAsync(url, isPythonExecutable = false).await()) { videoInfo ->
-        respondVideoInfo(videoInfo)
-    }
+    call.onYTRequest(
+        status = getVideoInfoAsync(url).await().map { it.details().serializableInfo }
+    ) { videoInfo -> respondVideoInfo(videoInfo) }
 }
 
 private inline fun <T> getIfAuthorizedOrDefault(isAuthorized: Boolean, default: T, getData: () -> T?) =
@@ -67,7 +66,9 @@ private suspend inline fun PipelineContext<Unit, ApplicationCall>.convertAndResp
         call.parameters["artist"]?.trim()
     }
 
-    val trackAlbum = getIfAuthorizedOrDefault(isAuthorized, default = "") { call.parameters["album"]?.trim() }
+    val trackAlbum = getIfAuthorizedOrDefault(isAuthorized, default = "") {
+        call.parameters["album"]?.trim()
+    }
 
     val trackNumberInAlbum = getIfAuthorizedOrDefault(isAuthorized, default = -1) {
         call.parameters["numberInAlbum"]?.trim()?.toInt()
@@ -77,50 +78,37 @@ private suspend inline fun PipelineContext<Unit, ApplicationCall>.convertAndResp
         call.parameters["coverUrl"]?.trim()
     }
 
-    call.onYoutubeDLRequest<VideoInfo>(
-        YtDlp.getVideoDataAsync(url, isPythonExecutable = false).await()
-    ) { (title, _, _, fileName, thumbnailURL) ->
+    call.onYTRequest(status = getVideoInfoAsync(url).await()) { info ->
         convertAndRespondVideoFile(
             url = url,
             trackExt = trackExt,
-            videoFileNameWithoutExtension = fileName,
-            trackTitle = trackTitle.takeIf(String::isNotEmpty) ?: title,
+            trackTitle = trackTitle.takeIf(String::isNotEmpty) ?: info.details().title(),
             trackArtist = trackArtist,
             trackAlbum = trackAlbum,
             trackNumberInAlbum = trackNumberInAlbum,
-            videoThumbnailURL = thumbnailURL,
+            videoThumbnailURL = info.details().thumbnails()[0],
             trackCoverUrl = trackCoverUrl
         )
     }
 }
 
-private suspend inline fun <T> ApplicationCall.onYoutubeDLRequest(
-    status: YtDlpRequestStatus,
+private suspend inline fun <T> ApplicationCall.onYTRequest(
+    status: Either<YTError, T>,
     onSuccess: ApplicationCall.(T) -> Unit
 ) = when (status) {
-    is YtDlpRequestStatus.Success<*> -> onSuccess(status.castAndGetData())
+    is Either.Right<*> -> onSuccess(status.value as T)
 
-    is YtDlpRequestStatus.Error.NoInternet -> println("WARNING: No Internet Connection")
+    is Either.Left<*> -> when (status.value as YTError) {
+        YTError.NOT_MATCH_REGEX -> respondText(
+            text = "Incorrect URL link",
+            status = HttpStatusCode.BadRequest
+        )
 
-    is YtDlpRequestStatus.Error.IncorrectUrl -> respondText(
-        text = "Incorrect URL link",
-        status = HttpStatusCode.BadRequest
-    )
-
-    is YtDlpRequestStatus.Error.UnknownError -> respondText(
-        text = "Unknown error",
-        status = HttpStatusCode.InternalServerError
-    )
-
-    is YtDlpRequestStatus.Error.StreamConversion -> respondText(
-        text = "Stream conversion is forbidden",
-        status = HttpStatusCode.BadRequest
-    )
-
-    is YtDlpRequestStatus.Error.GeoRestricted -> respondText(
-        text = "Sorry, this video is geo-restricted",
-        status = HttpStatusCode.Locked
-    )
+        YTError.UNKNOWN_ERROR -> respondText(
+            text = "Unknown Error",
+            status = HttpStatusCode.InternalServerError
+        )
+    }
 }
 
 private suspend inline fun ApplicationCall.respondVideoInfo(videoInfo: VideoInfo) = respond(message = videoInfo)
@@ -128,18 +116,16 @@ private suspend inline fun ApplicationCall.respondVideoInfo(videoInfo: VideoInfo
 private suspend inline fun ApplicationCall.convertAndRespondVideoFile(
     url: String,
     trackExt: TrackFileExtension,
-    videoFileNameWithoutExtension: String,
     trackTitle: String,
     trackArtist: String,
     trackAlbum: String,
     trackNumberInAlbum: Int,
     videoThumbnailURL: String,
     trackCoverUrl: String? = null,
-) = onYoutubeDLRequest<File>(
+) = onYTRequest<File>(
     convertVideoAsync(
         url,
         trackExt,
-        videoFileNameWithoutExtension,
         trackTitle,
         trackArtist,
         trackAlbum,

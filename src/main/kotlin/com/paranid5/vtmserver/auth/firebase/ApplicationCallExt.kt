@@ -1,4 +1,4 @@
-package com.dinaraparanid.auth.firebase
+package com.paranid5.vtmserver.auth.firebase
 
 import io.ktor.server.application.*
 import io.ktor.server.auth.*

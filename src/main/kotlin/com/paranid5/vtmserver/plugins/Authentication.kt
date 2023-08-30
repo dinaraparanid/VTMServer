@@ -1,6 +1,6 @@
-package com.dinaraparanid.plugins
+package com.paranid5.vtmserver.plugins
 
-import com.dinaraparanid.auth.firebase.firebase
+import com.paranid5.vtmserver.auth.firebase.firebase
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
 

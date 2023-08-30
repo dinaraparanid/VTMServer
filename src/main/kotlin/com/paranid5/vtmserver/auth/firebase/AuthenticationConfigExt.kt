@@ -1,6 +1,6 @@
-package com.dinaraparanid.auth.firebase
+package com.paranid5.vtmserver.auth.firebase
 
-import com.dinaraparanid.config.firebase.FirebaseAdmin
+import com.paranid5.vtmserver.config.firebase.FirebaseAdmin
 import io.ktor.server.auth.*
 
 fun AuthenticationConfig.firebase() {

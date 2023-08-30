@@ -1,13 +1,18 @@
-FROM gradle:7-jdk17 AS build
+# Replace `17` with your project's java version
+FROM gradle:8-jdk17 AS build
 COPY --chown=gradle:gradle . /home/gradle/src
 WORKDIR /home/gradle/src
-RUN gradle buildFatJar --no-daemon
+RUN export GRADLE_OPTS="-Djdk.lang.Process.launchMechanism=vfork"
+RUN gradle shadowJar --no-daemon
 
-FROM openjdk:17-alpine
-EXPOSE 1337:1337
-RUN apk add --no-cache bash
-RUN wget https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -O /usr/local/bin/yt-dlp
-RUN chmod a+rx /usr/local/bin/yt-dlp
+# Replace `17` with your project's java version
+FROM openjdk:17
+
 RUN mkdir /app
-COPY --from=build /home/gradle/src/build/libs/*.jar /app/vtm-server.jar
+COPY --from=build /home/gradle/src/build/libs/*.jar /app/VTMServer.jar
+
+EXPOSE 8080
+
+# Start point in your app
+# In my case it was not required
 # ENTRYPOINT ["java","-jar","/app/vtm-server.jar"]

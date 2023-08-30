@@ -1,4 +1,4 @@
-package com.dinaraparanid.config.firebase
+package com.paranid5.vtmserver.config.firebase
 
 import com.google.auth.oauth2.GoogleCredentials
 import com.google.firebase.FirebaseApp

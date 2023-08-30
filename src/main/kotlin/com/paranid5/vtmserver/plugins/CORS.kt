@@ -1,4 +1,4 @@
-package com.dinaraparanid.plugins
+package com.paranid5.vtmserver.plugins
 
 import io.ktor.http.*
 import io.ktor.server.application.*
