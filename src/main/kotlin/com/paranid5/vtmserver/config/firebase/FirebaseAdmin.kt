@@ -3,10 +3,12 @@ package com.paranid5.vtmserver.config.firebase
 import com.google.auth.oauth2.GoogleCredentials
 import com.google.firebase.FirebaseApp
 import com.google.firebase.FirebaseOptions
+import io.github.cdimascio.dotenv.dotenv
 
 object FirebaseAdmin {
-    private val firebaseServiceAccountId = System.getenv("FIREBASE_SERVICE_ACCOUNT_ID")
-    private val firebaseAdminSdk = System.getenv("FIREBASE_ADMIN_SDK")
+    private val firebaseAdminSdk by lazy {
+        dotenv()["FIREBASE_ADMIN_SDK"]
+    }
 
     lateinit var app: FirebaseApp
         private set
@@ -15,7 +17,6 @@ object FirebaseAdmin {
         app = FirebaseApp.initializeApp(
             FirebaseOptions.builder()
                 .setCredentials(GoogleCredentials.fromStream(firebaseAdminSdk.byteInputStream()))
-                .setServiceAccountId(firebaseServiceAccountId)
                 .build()
         )
     }

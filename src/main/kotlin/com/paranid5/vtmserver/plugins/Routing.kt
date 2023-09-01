@@ -20,16 +20,16 @@ fun Application.configureRouting() {
     install(AutoHeadResponse)
 
     routing {
-        get("/get_video/{url?}") {
+        get("/get_video{url?}") {
             respondVideoData()
         }
 
-        get("/convert_video/{url?}{ext?}") {
+        get("/convert_video{url?}{ext?}") {
             convertAndRespondTrackFile(isAuthorized = false)
         }
 
         authenticate(FirebaseAuthProvider.FIREBASE_AUTH) {
-            get("/convert_video_auth/{url?}{ext?}{title?}{artist?}{album?}{numberInAlbum?}{coverUrl?}") {
+            get("/convert_video_auth{url?}{ext?}{title?}{artist?}{album?}{numberInAlbum?}{coverUrl?}") {
                 convertAndRespondTrackFile(isAuthorized = true)
             }
         }
@@ -82,11 +82,11 @@ private suspend inline fun PipelineContext<Unit, ApplicationCall>.convertAndResp
         convertAndRespondVideoFile(
             url = url,
             trackExt = trackExt,
-            trackTitle = trackTitle.takeIf(String::isNotEmpty) ?: info.details().title(),
-            trackArtist = trackArtist,
+            trackTitle = trackTitle.takeIf(String::isNotEmpty) ?: info.details().title().trim(),
+            trackArtist = trackArtist.takeIf(String::isNotEmpty) ?: info.details().author().trim(),
             trackAlbum = trackAlbum,
             trackNumberInAlbum = trackNumberInAlbum,
-            videoThumbnailURL = info.details().thumbnails()[0],
+            videoThumbnailURL = info.details().thumbnails().last(),
             trackCoverUrl = trackCoverUrl
         )
     }
@@ -101,6 +101,11 @@ private suspend inline fun <T> ApplicationCall.onYTRequest(
     is Either.Left<*> -> when (status.value as YTError) {
         YTError.NOT_MATCH_REGEX -> respondText(
             text = "Incorrect URL link",
+            status = HttpStatusCode.BadRequest
+        )
+
+        YTError.FILE_CONVERSION_ERROR -> respondText(
+            text = "File conversion error",
             status = HttpStatusCode.BadRequest
         )
 
@@ -122,7 +127,7 @@ private suspend inline fun ApplicationCall.convertAndRespondVideoFile(
     trackNumberInAlbum: Int,
     videoThumbnailURL: String,
     trackCoverUrl: String? = null,
-) = onYTRequest<File>(
+) = onYTRequest(
     convertVideoAsync(
         url,
         trackExt,

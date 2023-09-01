@@ -24,5 +24,5 @@ inline val VideoDetails.serializableInfo
         title = title(),
         duration = lengthSeconds(),
         description = description(),
-        thumbnailURL = thumbnails()[0]
+        thumbnailURL = thumbnails().last()
     )

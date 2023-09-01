@@ -10,10 +10,6 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import java.io.File
 
-enum class YTError {
-    NOT_MATCH_REGEX, UNKNOWN_ERROR
-}
-
 private val CONVERTED_TRACKS_PATH by lazy {
     "${System.getProperty("user.dir")}/vtm_tracks"
 }
